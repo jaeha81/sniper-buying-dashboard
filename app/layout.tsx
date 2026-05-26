@@ -1,0 +1,143 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { Crosshair, Package, LayoutDashboard } from 'lucide-react'
+import './globals.css'
+import { CartProvider } from '@/lib/cart-context'
+import { CartNavButton } from '@/components/cart-nav-button'
+import { AuthNavButton } from '@/components/auth-nav-button'
+
+export const metadata: Metadata = {
+  title: '스나이퍼 구매대행 | Sniper Buying',
+  description: '데이터 기반 스나이퍼 스코어로 엄선된 해외 직구. 검증된 마진율과 통관 안정성.',
+  keywords: ['해외구매대행', '직구', '스나이퍼스코어', '마진계산', 'iHerb', 'Amazon'],
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ko" className="dark">
+      <body className="min-h-screen flex flex-col bg-luxury-bg text-foreground">
+        <CartProvider>
+          {/* Navigation */}
+          <header className="glass-nav sticky top-0 z-50">
+            <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+              {/* Logo */}
+              <Link href="/" className="flex items-center gap-2.5 group">
+                <div className="w-8 h-8 rounded-lg bg-gold-gradient flex items-center justify-center shadow-gold-glow">
+                  <Crosshair className="w-4 h-4 text-luxury-bg" />
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-serif text-xl font-semibold text-foreground group-hover:text-gold-light transition-colors">
+                    스나이퍼
+                  </span>
+                  <span className="text-xs text-muted-foreground tracking-widest uppercase">
+                    구매대행
+                  </span>
+                </div>
+              </Link>
+
+              {/* Nav links */}
+              <nav className="hidden md:flex items-center gap-1">
+                {[
+                  { href: '/products', label: '상품', icon: Package },
+                  { href: '/admin', label: '관리자', icon: LayoutDashboard },
+                ].map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-all duration-200"
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+
+              {/* Right actions */}
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/admin/margins"
+                  className="hidden md:flex items-center gap-2 px-4 py-2 text-sm border border-gold/30 text-gold hover:bg-gold/10 rounded-lg transition-all duration-200"
+                >
+                  마진계산기
+                </Link>
+                <CartNavButton />
+                <AuthNavButton />
+              </div>
+            </div>
+          </header>
+
+          {/* Main content */}
+          <main className="flex-1">{children}</main>
+
+          {/* Footer */}
+          <footer className="border-t border-white/5 bg-luxury-surface">
+            <div className="container mx-auto px-6 py-16">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+                <div className="md:col-span-2">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-7 h-7 rounded-lg bg-gold-gradient flex items-center justify-center">
+                      <Crosshair className="w-3.5 h-3.5 text-luxury-bg" />
+                    </div>
+                    <span className="font-serif text-lg text-foreground">스나이퍼 구매대행</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                    데이터 기반 스나이퍼 스코어로 검증된 해외 직구 상품만을 엄선합니다.
+                    최적의 마진율, 안전한 통관, 빠른 배송을 보장합니다.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4">
+                    서비스
+                  </h4>
+                  <ul className="space-y-2.5">
+                    {[
+                      { href: '/products', label: '전체 상품' },
+                      { href: '/admin/margins', label: '마진 계산기' },
+                      { href: '/shipping-guide', label: '배송 안내' },
+                      { href: '/faq', label: '자주 묻는 질문' },
+                    ].map(({ href, label }) => (
+                      <li key={href}>
+                        <Link href={href} className="text-sm text-muted-foreground hover:text-gold transition-colors">
+                          {label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground tracking-widest uppercase mb-4">
+                    정책
+                  </h4>
+                  <ul className="space-y-2.5">
+                    {[
+                      { href: '/policy/privacy', label: '개인정보처리방침' },
+                      { href: '/policy/terms', label: '이용약관' },
+                      { href: '/policy/refund', label: '환불정책' },
+                    ].map(({ href, label }) => (
+                      <li key={href}>
+                        <Link href={href} className="text-sm text-muted-foreground hover:text-gold transition-colors">
+                          {label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center gap-3">
+                <p className="text-xs text-muted-foreground">
+                  © 2026 스나이퍼 구매대행. All rights reserved.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  환율 기준: 1 USD = 1,350 KRW · v0.2
+                </p>
+              </div>
+            </div>
+          </footer>
+        </CartProvider>
+      </body>
+    </html>
+  )
+}
