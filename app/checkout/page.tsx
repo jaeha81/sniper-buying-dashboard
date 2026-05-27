@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Building2, ArrowLeft, Package } from 'lucide-react'
+import { CreditCard, Building2, ArrowLeft, Package, AlertCircle, CheckSquare } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Label } from '../../components/ui/label'
@@ -12,31 +12,76 @@ import { formatKRW } from '@/lib/utils'
 
 const DOMESTIC_SHIPPING = 3000
 
+const CONSENT_ITEMS = [
+  {
+    key: 'overseas',
+    text: '해당 상품이 해외 구매대행 상품이며, 주문 후 해외 판매처 구매가 진행될 경우 단순변심 취소가 제한될 수 있음을 확인했습니다.',
+    required: true,
+  },
+  {
+    key: 'customs',
+    text: '상품 가격·발송국·품목·수량·통관 기준에 따라 관부가세가 발생할 수 있음을 확인했습니다.',
+    required: true,
+  },
+  {
+    key: 'customsId',
+    text: '개인통관고유부호와 수령자 정보가 정확해야 하며, 정보 오류로 인한 통관 지연 또는 반송이 발생할 수 있음을 확인했습니다.',
+    required: true,
+  },
+  {
+    key: 'privacy',
+    text: '개인정보 수집·이용에 동의합니다. (필수)',
+    required: true,
+  },
+  {
+    key: 'refund',
+    text: '환불·반품 정책을 확인했습니다. (필수)',
+    required: true,
+  },
+]
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, clearCart } = useCart()
   const [form, setForm] = useState({
     name: '',
+    email: '',
     phone: '',
+    customsId: '',
     zipcode: '',
     address: '',
     addressDetail: '',
     paymentMethod: 'card' as 'card' | 'transfer',
+    requests: '',
   })
+  const [consents, setConsents] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [consentError, setConsentError] = useState(false)
 
   const total = totalPrice + (items.length > 0 ? DOMESTIC_SHIPPING : 0)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
+
+  const toggleConsent = (key: string) => {
+    setConsents((prev) => ({ ...prev, [key]: !prev[key] }))
+    setConsentError(false)
+  }
+
+  const allRequired = CONSENT_ITEMS.filter((c) => c.required).every((c) => consents[c.key])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (items.length === 0) return
+
+    if (!allRequired) {
+      setConsentError(true)
+      return
+    }
+
     setIsSubmitting(true)
 
-    // 주문 저장 (localStorage)
     const orderId = `SB-${Date.now()}`
     const order = {
       id: orderId,
@@ -94,9 +139,11 @@ export default function CheckoutPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+
+            {/* 수령자 정보 */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">배송지 정보</CardTitle>
+                <CardTitle className="text-base">수령자 정보</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -128,6 +175,53 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="email">이메일 * (주문내역 발송)</Label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={handleChange}
+                    placeholder="your@email.com"
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="customsId">개인통관고유부호 * (해외 구매대행 필수)</Label>
+                  <input
+                    id="customsId"
+                    name="customsId"
+                    type="text"
+                    required
+                    value={form.customsId}
+                    onChange={handleChange}
+                    placeholder="P000000000000"
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    관세청 개인통관고유부호 발급:{' '}
+                    <a
+                      href="https://unipass.customs.go.kr"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    >
+                      unipass.customs.go.kr
+                    </a>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 배송지 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">배송지 정보</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div>
                   <Label>주소 *</Label>
                   <div className="mt-1 flex gap-2">
@@ -162,9 +256,23 @@ export default function CheckoutPage() {
                     className="mt-2 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="requests">요청사항 (선택)</Label>
+                  <textarea
+                    id="requests"
+                    name="requests"
+                    value={form.requests}
+                    onChange={handleChange}
+                    placeholder="배송 관련 요청사항을 입력해주세요"
+                    rows={2}
+                    className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
               </CardContent>
             </Card>
 
+            {/* 결제 수단 */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">결제 수단</CardTitle>
@@ -204,12 +312,49 @@ export default function CheckoutPage() {
                     className="text-blue-600"
                   />
                   <Building2 className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-800">계좌이체</span>
+                  <span className="text-sm font-medium text-gray-800">계좌이체 (무통장입금)</span>
                 </label>
+              </CardContent>
+            </Card>
+
+            {/* 동의 항목 */}
+            <Card className={consentError ? 'border-red-300' : ''}>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4" />
+                  구매 전 필수 동의
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {consentError && (
+                  <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    모든 필수 항목에 동의해주세요.
+                  </div>
+                )}
+                {CONSENT_ITEMS.map((item) => (
+                  <label
+                    key={item.key}
+                    className="flex items-start gap-3 cursor-pointer group"
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={!!consents[item.key]}
+                        onChange={() => toggleConsent(item.key)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors">
+                      {item.text}
+                    </span>
+                  </label>
+                ))}
               </CardContent>
             </Card>
           </div>
 
+          {/* 주문 요약 */}
           <div>
             <Card className="sticky top-20">
               <CardHeader>
@@ -236,8 +381,12 @@ export default function CheckoutPage() {
                     <span>배송비</span>
                     <span>{formatKRW(DOMESTIC_SHIPPING)}</span>
                   </div>
+                  <div className="flex justify-between text-xs text-amber-600">
+                    <span>관부가세</span>
+                    <span>주문 검수 후 안내</span>
+                  </div>
                   <div className="border-t pt-2 flex justify-between font-bold text-gray-900">
-                    <span>최종 결제금액</span>
+                    <span>결제 예정금액</span>
                     <span className="text-blue-600">{formatKRW(total)}</span>
                   </div>
                 </div>
@@ -247,11 +396,11 @@ export default function CheckoutPage() {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? '처리 중...' : '결제하기'}
+                  {isSubmitting ? '처리 중...' : '주문 접수하기'}
                 </Button>
 
-                <p className="text-xs text-gray-400 text-center">
-                  주문 전 이용약관 및 환불정책을 확인해주세요.
+                <p className="text-xs text-gray-400 text-center leading-relaxed">
+                  주문 접수 후 담당자 검수를 거쳐 최종 결제 안내를 드립니다.
                 </p>
               </CardContent>
             </Card>

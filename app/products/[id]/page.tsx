@@ -9,13 +9,17 @@ import {
   Package,
   AlertCircle,
   CheckCircle2,
+  MessageSquare,
+  Truck,
+  FileText,
+  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getProductById } from '@/data/sample-products'
 import { useCart } from '@/lib/cart-context'
-import { formatKRW, formatUSD, getCategoryLabel, getRiskLevelLabel, getStatusLabel } from '@/lib/utils'
+import { formatKRW, getCategoryLabel, getRiskLevelLabel, getStatusLabel } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
 import { useState } from 'react'
 
@@ -47,30 +51,19 @@ export default function ProductDetailPage() {
     setTimeout(() => setAdded(false), 2000)
   }
 
+  const isActive = product.status === 'active'
+  const isCandidate = product.status === 'candidate'
+  const isUnavailable = product.status === 'paused' || product.status === 'discontinued'
+
   const riskColors = {
     LOW: 'text-green-600 bg-green-50',
     MEDIUM: 'text-yellow-600 bg-yellow-50',
     HIGH: 'text-red-600 bg-red-50',
   }
 
-  const scoreItems = [
-    { label: '국내수요', value: product.demandScore, max: 5 },
-    { label: '가격경쟁력', value: product.priceCompetitivenessScore, max: 5 },
-    { label: '마진율', value: Math.min(5, Math.max(1, Math.floor(product.marginRate / 6))), max: 5 },
-    { label: '배송안정성', value: product.shippingStabilityScore, max: 5 },
-    {
-      label: '통관리스크',
-      value: product.riskLevel === 'LOW' ? 5 : product.riskLevel === 'MEDIUM' ? 3 : 1,
-      max: 5,
-    },
-    {
-      label: '경쟁강도',
-      value: product.competitionLevel === 'low' ? 5 : product.competitionLevel === 'medium' ? 3 : 1,
-      max: 5,
-    },
-    { label: '페이지설득력', value: product.pageConvincingScore, max: 5 },
-    { label: '자동화적합도', value: product.automationScore, max: 5 },
-  ]
+  // Customer-facing estimated total cost: domestic price + potential customs
+  const estimatedTotal = product.domesticExpectedPrice
+  const estimatedShipping = product.internationalShippingCost + product.domesticShippingCost
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -92,7 +85,7 @@ export default function ProductDetailPage() {
           <Card>
             <CardContent className="pt-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-gray-700">스나이퍼 스코어</span>
+                <span className="text-sm font-semibold text-gray-700">검증 등급</span>
                 <div
                   className={`px-2.5 py-1 rounded-full text-sm font-bold ${
                     product.sniperScore >= 80
@@ -125,23 +118,9 @@ export default function ProductDetailPage() {
                   style={{ width: `${product.sniperScore}%` }}
                 />
               </div>
-
-              <div className="space-y-2">
-                {scoreItems.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-20 shrink-0">{item.label}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                      <div
-                        className="h-1.5 rounded-full bg-blue-400"
-                        style={{ width: `${(item.value / item.max) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-600 w-8 text-right">
-                      {item.value}/{item.max}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-gray-400 text-center">
+                수익성·배송·통관·경쟁도 종합 검증 점수
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -172,80 +151,102 @@ export default function ProductDetailPage() {
             <p className="text-gray-500 mt-2 text-sm leading-relaxed">{product.description}</p>
           </div>
 
+          {/* 고객용 예상 비용 안내 */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">가격 분석</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                예상 비용 안내
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400">해외 구매가</p>
-                  <p className="text-lg font-bold text-gray-900">{formatUSD(product.overseasPrice)}</p>
-                  <p className="text-xs text-gray-400">≈ {formatKRW(Math.round(product.overseasPrice * 1350))}</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-xs text-blue-400">국내 판매 예정가</p>
-                  <p className="text-lg font-bold text-blue-700">{formatKRW(product.domesticExpectedPrice)}</p>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <p className="text-xs text-blue-400 mb-1">예상 구매가 (관부가세 포함)</p>
+                  <p className="text-2xl font-bold text-blue-700">{formatKRW(estimatedTotal)}</p>
                 </div>
               </div>
 
-              <div className="border-t pt-3 space-y-1.5">
-                {[
-                  ['현지 배송비', formatUSD(product.localShippingCost)],
-                  ['국제 배송비', formatKRW(product.internationalShippingCost)],
-                  ['관세·부가세', formatKRW(product.taxEstimate)],
-                  ['결제 수수료', formatKRW(product.paymentFee)],
-                  ['국내 배송비', formatKRW(product.domesticShippingCost)],
-                  ['기타 비용', formatKRW(product.otherCosts)],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between text-xs text-gray-500">
-                    <span>{label}</span>
-                    <span>{value}</span>
-                  </div>
-                ))}
-                <div className="border-t pt-2 flex justify-between text-sm font-semibold">
-                  <span className="text-gray-700">총 원가</span>
-                  <span className="text-gray-900">{formatKRW(product.totalCost)}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-gray-700">예상 순마진</span>
-                  <span className={product.expectedMargin > 0 ? 'text-green-600' : 'text-red-600'}>
-                    {formatKRW(product.expectedMargin)} ({product.marginRate.toFixed(1)}%)
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5" />
+                    예상 배송비 (국제+국내)
                   </span>
+                  <span className="font-medium text-gray-700">{formatKRW(estimatedShipping)}</span>
                 </div>
+                {product.taxEstimate > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5" />
+                      예상 관부가세
+                    </span>
+                    <span className="font-medium text-amber-600">{formatKRW(product.taxEstimate)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500 leading-relaxed">
+                본 상품은 해외 구매대행 상품입니다. 상품 가격·수량·발송국 등에 따라
+                관부가세가 달라질 수 있으며, 개인통관고유부호가 필요합니다.
               </div>
             </CardContent>
           </Card>
 
+          {/* 통관 위험 경고 */}
           {product.riskLevel !== 'LOW' && (
             <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>
                 {product.riskLevel === 'HIGH'
-                  ? '이 상품은 통관 리스크가 높습니다. 관세·전파인증 등 추가 비용이 발생할 수 있습니다.'
+                  ? '이 상품은 통관 리스크가 높습니다. 관세·전파인증 등 추가 확인이 필요합니다. 주문 전 담당자 검토 후 안내 드립니다.'
                   : '통관 시 추가 서류 또는 검사가 필요할 수 있습니다.'}
               </span>
             </div>
           )}
 
+          {/* 검토중 안내 */}
+          {isCandidate && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              이 상품은 현재 통관, 재고, 가격 조건을 검토 중입니다. 바로 주문은 불가하며,
+              견적 문의를 남겨주시면 구매 가능 여부를 확인해 드립니다.
+            </div>
+          )}
+
           <div className="flex gap-3 flex-wrap">
-            <Button
-              className="flex-1 bg-blue-600 hover:bg-blue-700 min-w-[160px]"
-              onClick={handleAddToCart}
-              disabled={product.status === 'paused' || product.status === 'discontinued'}
-            >
-              {added ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  담겼습니다!
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  {product.status === 'paused' ? '일시 중지된 상품' : '장바구니 담기'}
-                </>
-              )}
-            </Button>
+            {isActive && (
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 min-w-[160px]"
+                onClick={handleAddToCart}
+              >
+                {added ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    담겼습니다!
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    장바구니 담기
+                  </>
+                )}
+              </Button>
+            )}
+
+            {isCandidate && (
+              <Button className="flex-1 min-w-[160px] bg-amber-600 hover:bg-amber-700">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                견적 문의하기
+              </Button>
+            )}
+
+            {isUnavailable && (
+              <Button className="flex-1 min-w-[160px]" disabled>
+                {product.status === 'paused' ? '일시 중지된 상품' : '판매 종료'}
+              </Button>
+            )}
+
             <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" className="gap-2">
                 <ExternalLink className="w-4 h-4" />
