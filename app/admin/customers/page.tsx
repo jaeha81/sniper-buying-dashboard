@@ -1,64 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import { ArrowLeft, Users, BarChart2, Search } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ArrowLeft, Users, BarChart2, Search, XCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatKRW } from '@/lib/utils'
-import type { Customer } from '@/lib/types'
 
-const sampleCustomers: Customer[] = [
-  {
-    id: 'cust-001',
-    name: '김민준',
-    email: 'minjun.kim@example.com',
-    phone: '010-1234-5678',
-    address: '서울특별시 강남구 테헤란로 123',
-    totalOrders: 7,
-    totalSpent: 420000,
-    createdAt: '2024-01-15T10:00:00Z',
-  },
-  {
-    id: 'cust-002',
-    name: '이서연',
-    email: 'seoyeon.lee@example.com',
-    phone: '010-2345-6789',
-    address: '경기도 성남시 분당구 판교로 456',
-    totalOrders: 4,
-    totalSpent: 248000,
-    createdAt: '2024-02-20T14:30:00Z',
-  },
-  {
-    id: 'cust-003',
-    name: '박지호',
-    email: 'jiho.park@example.com',
-    phone: '010-3456-7890',
-    address: '부산광역시 해운대구 해운대로 789',
-    totalOrders: 12,
-    totalSpent: 890000,
-    createdAt: '2023-11-05T09:00:00Z',
-  },
-  {
-    id: 'cust-004',
-    name: '최수아',
-    email: 'sua.choi@example.com',
-    phone: '010-4567-8901',
-    address: '대구광역시 수성구 범어로 321',
-    totalOrders: 2,
-    totalSpent: 114000,
-    createdAt: '2024-04-08T11:45:00Z',
-  },
-  {
-    id: 'cust-005',
-    name: '정도현',
-    email: 'dohyun.jung@example.com',
-    phone: '010-5678-9012',
-    address: '인천광역시 남동구 인하로 654',
-    totalOrders: 5,
-    totalSpent: 335000,
-    createdAt: '2024-03-12T16:20:00Z',
-  },
-]
+interface CustomerRow {
+  email: string
+  name: string
+  totalOrders: number
+  totalSpent: number
+  lastOrderAt: string
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ko-KR', {
@@ -69,14 +23,43 @@ function formatDate(iso: string): string {
 }
 
 export default function AdminCustomersPage() {
+  const [customers, setCustomers] = useState<CustomerRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
-  const totalCustomers = sampleCustomers.length
-  const avgOrderValue =
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true)
+    setFetchError(null)
+    try {
+      const res = await fetch('/api/customers')
+      if (res.ok) {
+        const data = await res.json()
+        setCustomers(data.customers ?? [])
+      } else if (res.status === 401) {
+        setFetchError('인증이 필요합니다. 다시 로그인해주세요.')
+      } else {
+        setFetchError(`고객 목록을 불러오지 못했습니다. (HTTP ${res.status})`)
+      }
+    } catch {
+      setFetchError('네트워크 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchCustomers() }, [fetchCustomers])
+
+  const filtered = customers.filter(
+    (c) =>
+      c.name.toLowerCase().includes(query.toLowerCase()) ||
+      c.email.toLowerCase().includes(query.toLowerCase())
+  )
+
+  const totalCustomers = customers.length
+  const avgSpent =
     totalCustomers > 0
-      ? Math.round(
-          sampleCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / totalCustomers
-        )
+      ? Math.round(customers.reduce((s, c) => s + c.totalSpent, 0) / totalCustomers)
       : 0
 
   return (
@@ -89,9 +72,27 @@ export default function AdminCustomersPage() {
           <ArrowLeft className="w-4 h-4" />
           대시보드
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">고객 관리</h1>
-        <p className="text-gray-500 mt-1">등록 고객 현황 및 구매 내역</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">고객 관리</h1>
+            <p className="text-gray-500 mt-1">등록 고객 현황 및 구매 내역</p>
+          </div>
+          <button
+            onClick={fetchCustomers}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            새로고침
+          </button>
+        </div>
       </div>
+
+      {fetchError && (
+        <div className="flex items-center gap-2 p-4 mb-6 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+          <XCircle className="w-4 h-4 shrink-0" />
+          {fetchError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <Card>
@@ -99,7 +100,9 @@ export default function AdminCustomersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">총 고객 수</p>
-                <p className="text-3xl font-bold text-gray-900">{totalCustomers}명</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {loading ? '—' : `${totalCustomers}명`}
+                </p>
               </div>
               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
                 <Users className="w-5 h-5 text-blue-600" />
@@ -112,7 +115,9 @@ export default function AdminCustomersPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">평균 구매금액</p>
-                <p className="text-3xl font-bold text-purple-600">{formatKRW(avgOrderValue)}</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {loading ? '—' : formatKRW(avgSpent)}
+                </p>
               </div>
               <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
                 <BarChart2 className="w-5 h-5 text-purple-600" />
@@ -139,7 +144,7 @@ export default function AdminCustomersPage() {
         <CardHeader>
           <CardTitle className="text-base">
             고객 목록{' '}
-            <span className="text-sm font-normal text-gray-400">총 {totalCustomers}명</span>
+            <span className="text-sm font-normal text-gray-400">총 {loading ? '…' : totalCustomers}명</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -151,27 +156,40 @@ export default function AdminCustomersPage() {
                   <th className="text-left px-4 py-3 font-medium">이메일</th>
                   <th className="text-center px-4 py-3 font-medium">총 주문수</th>
                   <th className="text-right px-4 py-3 font-medium">총 구매금액</th>
-                  <th className="text-left px-4 py-3 font-medium">가입일</th>
+                  <th className="text-left px-4 py-3 font-medium">최근 주문</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {sampleCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{customer.name}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{customer.email}</td>
-                    <td className="px-4 py-3 text-center text-gray-700">
-                      {customer.totalOrders}건
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">
-                      {formatKRW(customer.totalSpent)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(customer.createdAt)}</td>
-                  </tr>
-                ))}
+                {loading
+                  ? [...Array(4)].map((_, i) => (
+                      <tr key={i}>
+                        {[...Array(5)].map((__, j) => (
+                          <td key={j} className="px-4 py-3">
+                            <div className="h-3 bg-gray-100 rounded animate-pulse" style={{ width: `${60 + (j % 3) * 20}%` }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  : filtered.map((c) => (
+                      <tr key={c.email} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{c.name}</p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{c.email}</td>
+                        <td className="px-4 py-3 text-center text-gray-700">{c.totalOrders}건</td>
+                        <td className="px-4 py-3 text-right font-medium text-gray-900">
+                          {formatKRW(c.totalSpent)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{formatDate(c.lastOrderAt)}</td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
+            {!loading && filtered.length === 0 && !fetchError && (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                {customers.length === 0 ? '아직 주문한 고객이 없습니다.' : '검색 결과가 없습니다.'}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
