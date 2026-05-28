@@ -133,7 +133,7 @@ function CheckoutContent() {
         await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload),
+          body: JSON.stringify({ ...orderPayload, orderRef: orderId }),
         })
       } catch {
         // Non-fatal — proceed with payment

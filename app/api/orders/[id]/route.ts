@@ -15,6 +15,7 @@ function isAdminAuthenticated(cookieStore: Awaited<ReturnType<typeof cookies>>):
 function rowToOrder(row: Record<string, any>): Order {
   return {
     id: row.id,
+    orderRef: row.order_ref ?? null,
     productId: row.product_id,
     productName: row.product_name,
     quantity: Number(row.quantity),

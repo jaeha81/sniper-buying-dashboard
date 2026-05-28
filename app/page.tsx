@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import {
   Crosshair,
@@ -13,19 +14,18 @@ import {
   Package,
   Target,
   CheckCircle2,
+  Lock,
+  Headphones,
+  Ship,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ProductCard } from '@/components/product-card'
 import { getTopProductsByScore } from '@/data/sample-products'
+import { StatsCounter } from '@/components/stats-counter'
 
 const HeroSpline = dynamic(() => import('@/components/hero-spline'), { ssr: false })
-
-const STATS = [
-  { value: '30+', label: '검증 상품' },
-  { value: '28%', label: '평균 마진율' },
-  { value: '8개', label: '스코어 지표' },
-  { value: '60+', label: '통과 기준점' },
-]
 
 const FEATURES = [
   {
@@ -158,14 +158,20 @@ export default function HomePage() {
               {...heroFade(0.6)}
               className="grid grid-cols-4 gap-6 mt-16 pt-10 border-t border-white/8"
             >
-              {STATS.map(({ value, label }) => (
-                <div key={label}>
-                  <div className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
-                    {value}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">{label}</div>
-                </div>
-              ))}
+              <Suspense
+                fallback={
+                  <>
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="space-y-2">
+                        <Skeleton className="h-8 w-16" />
+                        <Skeleton className="h-3 w-12" />
+                      </div>
+                    ))}
+                  </>
+                }
+              >
+                <StatsCounter />
+              </Suspense>
             </motion.div>
           </div>
         </div>
@@ -204,6 +210,204 @@ export default function HomePage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TRUST SIGNALS ── */}
+      <section className="py-16 border-t border-white/5 bg-luxury-surface/40">
+        <div className="container mx-auto px-6">
+          <motion.div {...fadeIn()} className="text-center mb-10">
+            <p className="text-xs text-gold tracking-widest uppercase font-medium mb-3">
+              안전 결제
+            </p>
+            <h2 className="font-serif text-2xl md:text-3xl font-medium">
+              고객 보호를 최우선으로
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            {[
+              {
+                icon: CreditCard,
+                title: 'Toss 결제',
+                desc: '안전한 토스페이먼츠 연동',
+              },
+              {
+                icon: Lock,
+                title: '개인정보보호',
+                desc: 'SSL 암호화 전송 보장',
+              },
+              {
+                icon: Headphones,
+                title: '1:1 CS 응대',
+                desc: '구매 전후 전담 상담',
+              },
+              {
+                icon: Ship,
+                title: '통관 보증',
+                desc: '통관 실패 시 전액 환불',
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                {...fadeIn(i * 0.08)}
+                className="flex flex-col items-center text-center p-5 rounded-2xl border border-white/6 bg-luxury-elevated hover:border-gold/20 transition-colors"
+              >
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+                  style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}
+                >
+                  <item.icon className="w-5 h-5 text-gold" />
+                </div>
+                <p className="text-sm font-semibold text-foreground mb-1">{item.title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── SHIPPING PROCESS ── */}
+      <section className="py-24 border-t border-white/5">
+        <div className="container mx-auto px-6">
+          <motion.div {...fadeIn()} className="text-center mb-14">
+            <p className="text-xs text-gold tracking-widest uppercase font-medium mb-4">
+              배송 프로세스
+            </p>
+            <h2 className="font-serif text-4xl md:text-5xl font-medium">
+              소싱부터 배송까지
+              <br />
+              5단계로 완성
+            </h2>
+          </motion.div>
+
+          <div className="max-w-5xl mx-auto">
+            {/* Desktop: horizontal flow */}
+            <div className="hidden md:flex items-center justify-between gap-0">
+              {[
+                {
+                  step: '01',
+                  label: '소싱',
+                  desc: '스나이퍼 스코어로\n상품 검증',
+                  color: '#A855F7',
+                },
+                {
+                  step: '02',
+                  label: '결제',
+                  desc: 'Toss 결제·\n해외 카드 대행',
+                  color: '#3B82F6',
+                },
+                {
+                  step: '03',
+                  label: '해외입고',
+                  desc: '미국·일본 창고\n수령 완료',
+                  color: '#10B981',
+                },
+                {
+                  step: '04',
+                  label: '통관',
+                  desc: '관세사 연동\n안전 통관',
+                  color: '#F59E0B',
+                },
+                {
+                  step: '05',
+                  label: '배송',
+                  desc: '국내 택배\n3~7일 수령',
+                  color: '#C9A84C',
+                },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center flex-1">
+                  <motion.div
+                    {...fadeIn(i * 0.12)}
+                    className="flex flex-col items-center text-center flex-1"
+                  >
+                    <div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 text-lg font-bold"
+                      style={{
+                        background: `${item.color}18`,
+                        border: `1px solid ${item.color}40`,
+                        color: item.color,
+                      }}
+                    >
+                      {item.step}
+                    </div>
+                    <p className="text-sm font-semibold text-foreground mb-1">{item.label}</p>
+                    <p
+                      className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line"
+                    >
+                      {item.desc}
+                    </p>
+                  </motion.div>
+                  {i < 4 && (
+                    <div className="flex items-center px-1 shrink-0">
+                      <ArrowRight className="w-4 h-4 text-white/20" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile: vertical list */}
+            <div className="flex md:hidden flex-col gap-0">
+              {[
+                {
+                  step: '01',
+                  label: '소싱',
+                  desc: '스나이퍼 스코어로 상품 검증',
+                  color: '#A855F7',
+                },
+                {
+                  step: '02',
+                  label: '결제',
+                  desc: 'Toss 결제 · 해외 카드 대행',
+                  color: '#3B82F6',
+                },
+                {
+                  step: '03',
+                  label: '해외입고',
+                  desc: '미국·일본 창고 수령 완료',
+                  color: '#10B981',
+                },
+                {
+                  step: '04',
+                  label: '통관',
+                  desc: '관세사 연동 안전 통관',
+                  color: '#F59E0B',
+                },
+                {
+                  step: '05',
+                  label: '배송',
+                  desc: '국내 택배 3~7일 수령',
+                  color: '#C9A84C',
+                },
+              ].map((item, i) => (
+                <div key={i} className="flex flex-col items-center">
+                  <motion.div
+                    {...fadeIn(i * 0.1)}
+                    className="flex items-center gap-4 w-full max-w-sm p-4 rounded-2xl border border-white/6 bg-luxury-surface"
+                  >
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center font-bold shrink-0"
+                      style={{
+                        background: `${item.color}18`,
+                        border: `1px solid ${item.color}40`,
+                        color: item.color,
+                      }}
+                    >
+                      {item.step}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                    </div>
+                  </motion.div>
+                  {i < 4 && (
+                    <div className="w-px h-4 bg-white/10 my-0" />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

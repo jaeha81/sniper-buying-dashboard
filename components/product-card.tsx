@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ExternalLink, ShoppingCart, CheckCircle2, TrendingUp, Shield, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ProductImage } from '@/components/product-image'
 import type { Product } from '@/lib/types'
 import {
   formatKRW,
@@ -12,7 +12,6 @@ import {
   getCategoryLabel,
   getRiskLevelLabel,
   getStatusLabel,
-  getProductImage,
 } from '@/lib/utils'
 import { useCart } from '@/lib/cart-context'
 import { useState } from 'react'
@@ -32,8 +31,6 @@ const riskColors = {
 export function ProductCard({ product, showAdminInfo = false, index = 0 }: ProductCardProps) {
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
-  const [imgError, setImgError] = useState(false)
-  const imageUrl = getProductImage(product)
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -57,23 +54,30 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
       transition={{ duration: 0.45, delay: index * 0.07, ease: 'easeOut' }}
     >
       <Link href={`/products/${product.id}`} className="block group">
-        <div className="card-luxury rounded-2xl overflow-hidden cursor-pointer">
-          {/* Product image */}
-          <div className="product-img-wrap relative h-52 bg-luxury-elevated">
-            {!imgError ? (
-              <Image
-                src={imageUrl}
+        <div
+          className="card-luxury rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out group-hover:scale-[1.015]"
+          style={{
+            boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
+            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+          }}
+          onMouseEnter={(e) => {
+            ;(e.currentTarget as HTMLDivElement).style.boxShadow =
+              '0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.35), 0 0 20px rgba(201,168,76,0.08)'
+          }}
+          onMouseLeave={(e) => {
+            ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(0,0,0,0.4)'
+          }}
+        >
+          {/* Product image — aspect ratio 4:3 via padding trick */}
+          <div className="product-img-wrap relative" style={{ paddingTop: '75%' }}>
+            <div className="absolute inset-0">
+              <ProductImage
+                imageUrl={product.imageUrl}
+                category={product.category}
                 alt={product.name}
-                fill
-                className="object-cover"
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                onError={() => setImgError(true)}
               />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-luxury-elevated">
-                <span className="text-5xl opacity-40">{getCategoryEmoji(product.category)}</span>
-              </div>
-            )}
+            </div>
             <div className="absolute inset-0 bg-gradient-to-t from-luxury-surface via-transparent to-transparent opacity-60" />
 
             {/* Badges */}
@@ -229,13 +233,3 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
   )
 }
 
-function getCategoryEmoji(category: string) {
-  const map: Record<string, string> = {
-    health: '💊',
-    sports: '🏋️',
-    beauty: '✨',
-    outdoor: '🏕️',
-    electronics: '⚡',
-  }
-  return map[category] || '📦'
-}

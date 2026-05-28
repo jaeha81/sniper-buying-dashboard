@@ -33,6 +33,7 @@ export interface Product {
 
 export interface Order {
   id: string
+  orderRef?: string | null // client-generated reference (e.g. SB-1234567890)
   productId: string
   productName: string
   quantity: number

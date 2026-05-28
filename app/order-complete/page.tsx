@@ -7,45 +7,57 @@ import { CheckCircle, Home, Package } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { formatKRW } from '@/lib/utils'
-
-interface OrderItem {
-  productId: string
-  name: string
-  quantity: number
-  unitPrice: number
-  totalPrice: number
-}
-
-interface StoredOrder {
-  id: string
-  items: OrderItem[]
-  subtotal: number
-  shipping: number
-  total: number
-  createdAt: string
-}
+import type { Order } from '@/lib/types'
 
 const steps = ['주문접수', '구매대행', '국제배송', '국내배송', '배달완료']
 
 function OrderCompleteContent() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get('orderId')
-  const [order, setOrder] = useState<StoredOrder | null>(null)
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!orderId) return
-    try {
-      const orders: StoredOrder[] = JSON.parse(localStorage.getItem('sniper_orders') || '[]')
-      const found = orders.find((o) => o.id === orderId)
-      if (found) setOrder(found)
-    } catch {}
+    if (!orderId) { setLoading(false); return }
+
+    // Fetch from API (Supabase-backed), fall back to localStorage
+    fetch(`/api/orders?ref=${encodeURIComponent(orderId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.order) {
+          setOrder(data.order)
+        } else {
+          // localStorage fallback for offline / unconfigured environments
+          try {
+            const raw = localStorage.getItem('sniper_orders')
+            if (raw) {
+              const orders = JSON.parse(raw) as Array<{ id: string }>
+              const found = orders.find((o) => o.id === orderId)
+              if (found) setOrder(found as unknown as Order)
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [orderId])
 
-  const displayItems = order?.items ?? []
-  const subtotal = order?.subtotal ?? 0
-  const shipping = order?.shipping ?? 3000
-  const total = order?.total ?? subtotal + shipping
-  const displayOrderId = orderId ?? 'SB-2026-001234'
+  const displayOrderId = order?.orderRef ?? orderId ?? 'SB-2026-001234'
+  const orderDate = order?.createdAt
+    ? new Date(order.createdAt).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-gray-400">
+        주문 정보를 불러오는 중...
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -69,14 +81,14 @@ function OrderCompleteContent() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">주문일시</span>
-              <span className="font-medium text-gray-900">
-                {new Date().toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </span>
+              <span className="font-medium text-gray-900">{orderDate}</span>
             </div>
+            {order?.customerName && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">주문자</span>
+                <span className="font-medium text-gray-900">{order.customerName}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">예상 배송</span>
               <span className="font-medium text-gray-900">주문일로부터 7~14일 소요</span>
@@ -84,37 +96,27 @@ function OrderCompleteContent() {
           </CardContent>
         </Card>
 
-        {displayItems.length > 0 && (
+        {order && (
           <Card className="mb-4">
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">주문 내역</h2>
               <div className="space-y-2 pb-3 border-b border-dashed border-gray-100">
-                {displayItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-start gap-2">
-                    <p className="text-xs text-gray-700 leading-snug flex-1">
-                      {item.name}
-                      {item.quantity > 1 && (
-                        <span className="text-gray-400"> x{item.quantity}</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-900 font-medium shrink-0">
-                      {formatKRW(item.totalPrice)}
-                    </p>
-                  </div>
-                ))}
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-xs text-gray-700 leading-snug flex-1">
+                    {order.productName}
+                    {order.quantity > 1 && (
+                      <span className="text-gray-400"> x{order.quantity}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-900 font-medium shrink-0">
+                    {formatKRW(order.totalPrice)}
+                  </p>
+                </div>
               </div>
               <div className="pt-3 space-y-1.5">
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>상품 금액</span>
-                  <span>{formatKRW(subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>배송비</span>
-                  <span>{formatKRW(shipping)}</span>
-                </div>
                 <div className="flex justify-between font-bold text-gray-900 pt-1">
-                  <span>합계</span>
-                  <span className="text-blue-600">{formatKRW(total)}</span>
+                  <span>결제 금액</span>
+                  <span className="text-blue-600">{formatKRW(order.totalPrice)}</span>
                 </div>
               </div>
             </CardContent>

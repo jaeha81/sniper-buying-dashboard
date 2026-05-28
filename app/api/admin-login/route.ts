@@ -12,9 +12,9 @@ export async function POST(request: Request) {
   response.cookies.set('admin_session', adminPass, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 8, // 8 hours
     path: '/',
-    sameSite: 'lax',
+    sameSite: 'strict',
   })
   return response
 }

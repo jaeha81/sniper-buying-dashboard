@@ -15,6 +15,7 @@ function isAdminAuthenticated(cookieStore: Awaited<ReturnType<typeof cookies>>):
 function rowToOrder(row: Record<string, any>): Order {
   return {
     id: row.id,
+    orderRef: row.order_ref ?? null,
     productId: row.product_id,
     productName: row.product_name,
     quantity: Number(row.quantity),
@@ -30,6 +31,7 @@ function rowToOrder(row: Record<string, any>): Order {
 }
 
 interface CreateOrderBody {
+  orderRef?: string
   productId: string
   productName: string
   quantity: number
@@ -45,8 +47,45 @@ interface CreateOrderBody {
 }
 
 // ─── GET /api/orders ──────────────────────────────────────────────────────────
+// Public: GET /api/orders?ref=SB-xxx  — fetch a single order by order_ref (no auth required)
+// Admin:  GET /api/orders             — fetch all orders (admin auth required)
 
-export async function GET(_request: Request) {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const ref = searchParams.get('ref')
+
+  // ── Public: fetch single order by order_ref ───────────────────────────────
+  if (ref) {
+    try {
+      const supabase = await createClient()
+      if (!supabase) {
+        return NextResponse.json(
+          { error: 'Supabase가 구성되지 않았습니다.' },
+          { status: 503 }
+        )
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_ref', ref)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 })
+        }
+        throw error
+      }
+
+      return NextResponse.json({ order: rowToOrder(data) })
+    } catch (err) {
+      console.error('[GET /api/orders?ref]', err)
+      return NextResponse.json({ error: '주문 조회 중 오류가 발생했습니다.' }, { status: 500 })
+    }
+  }
+
+  // ── Admin: fetch all orders ───────────────────────────────────────────────
   const cookieStore = await cookies()
   if (!isAdminAuthenticated(cookieStore)) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
@@ -83,6 +122,7 @@ export async function POST(request: Request) {
     const body: CreateOrderBody = await request.json()
 
     const {
+      orderRef,
       productId,
       productName,
       quantity,
@@ -120,6 +160,7 @@ export async function POST(request: Request) {
     }
 
     const row = {
+      order_ref: orderRef ?? null,
       product_id: productId,
       product_name: productName,
       quantity,
