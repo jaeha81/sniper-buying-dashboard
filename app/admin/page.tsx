@@ -244,21 +244,28 @@ export default function AdminPage() {
                   catProducts.length > 0
                     ? Math.round(catProducts.reduce((sum, p) => sum + p.sniperScore, 0) / catProducts.length)
                     : 0
+                const scoreBarWidth = `${avgScore}%`
+                const scoreColor =
+                  avgScore >= 80 ? '#22C55E' : avgScore >= 65 ? '#C9A84C' : avgScore >= 50 ? '#F59E0B' : '#EF4444'
 
                 return (
-                  <div
-                    key={cat}
-                    className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{getCategoryLabel(cat)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {catProducts.length}개 ({activeCount}개 판매중)
-                      </p>
+                  <div key={cat} className="py-2.5 border-b border-white/5 last:border-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div>
+                        <span className="text-sm font-medium text-foreground">{getCategoryLabel(cat)}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {catProducts.length}개 ({activeCount} 판매중)
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold" style={{ color: scoreColor }}>
+                        {avgScore}
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-gold">avg {avgScore}</p>
-                      <p className="text-xs text-muted-foreground">스코어</p>
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: scoreBarWidth, backgroundColor: scoreColor }}
+                      />
                     </div>
                   </div>
                 )

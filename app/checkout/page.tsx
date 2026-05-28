@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Script from 'next/script'
@@ -61,6 +61,7 @@ function CheckoutContent() {
 
   const { items, totalPrice, clearCart } = useCart()
   const [tossLoaded, setTossLoaded] = useState(false)
+  const [daumLoaded, setDaumLoaded] = useState(false)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -82,6 +83,23 @@ function CheckoutContent() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
+
+  const openPostcode = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const daum = (window as any).daum
+    if (!daum?.Postcode) return
+    new daum.Postcode({
+      oncomplete(data: { zonecode: string; address: string; buildingName: string }) {
+        const detail = data.buildingName ? ` (${data.buildingName})` : ''
+        setForm((prev) => ({
+          ...prev,
+          zipcode: data.zonecode,
+          address: data.address + detail,
+          addressDetail: '',
+        }))
+      },
+    }).open()
+  }, [])
 
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     setForm((prev) => ({ ...prev, paymentMethod: method }))
@@ -199,6 +217,12 @@ function CheckoutContent() {
         src="https://js.tosspayments.com/v1/payment"
         strategy="afterInteractive"
         onLoad={() => setTossLoaded(true)}
+      />
+      {/* Daum Postcode CDN */}
+      <Script
+        src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+        strategy="afterInteractive"
+        onLoad={() => setDaumLoaded(true)}
       />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -330,7 +354,9 @@ function CheckoutContent() {
                       />
                       <button
                         type="button"
-                        className="px-3 py-2 text-sm border border-white/10 text-muted-foreground hover:text-foreground hover:border-white/20 rounded-lg transition-all shrink-0"
+                        onClick={openPostcode}
+                        disabled={!daumLoaded}
+                        className="px-3 py-2 text-sm border border-white/10 text-muted-foreground hover:text-foreground hover:border-gold/30 hover:text-gold rounded-lg transition-all shrink-0 disabled:opacity-40 disabled:cursor-wait"
                       >
                         우편번호 찾기
                       </button>
