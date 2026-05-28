@@ -22,7 +22,8 @@ import { formatKRW } from '@/lib/utils'
 
 const DOMESTIC_SHIPPING = 3000
 const TOSS_CLIENT_KEY =
-  process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eon'
+  process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ??
+  (process.env.NODE_ENV !== 'production' ? 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eon' : '')
 
 const CONSENT_ITEMS = [
   {
@@ -118,6 +119,11 @@ function CheckoutContent() {
 
     if (!allRequired) {
       setConsentError(true)
+      return
+    }
+
+    if (!TOSS_CLIENT_KEY) {
+      setPaymentError('결제 설정이 올바르지 않습니다. 관리자에게 문의해주세요.')
       return
     }
 

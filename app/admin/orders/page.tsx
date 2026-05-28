@@ -16,8 +16,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatKRW } from '@/lib/utils'
 import type { Order } from '@/lib/types'
-import { sampleOrders } from '@/data/sample-orders'
-
 type OrderStatus = Order['status']
 
 const STATUS_TABS: { key: 'all' | OrderStatus; label: string }[] = [
@@ -70,21 +68,25 @@ function SkeletonRow() {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'all' | OrderStatus>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
+    setFetchError(null)
     try {
       const res = await fetch('/api/orders')
       if (res.ok) {
         const data = await res.json()
         setOrders(data.orders ?? data)
+      } else if (res.status === 401) {
+        setFetchError('인증이 필요합니다. 다시 로그인해주세요.')
       } else {
-        setOrders(sampleOrders)
+        setFetchError(`주문 목록을 불러오지 못했습니다. (HTTP ${res.status})`)
       }
     } catch {
-      setOrders(sampleOrders)
+      setFetchError('네트워크 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -223,6 +225,14 @@ export default function AdminOrdersPage() {
           )
         })}
       </div>
+
+      {/* 에러 배너 */}
+      {fetchError && (
+        <div className="flex items-center gap-3 p-4 mb-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
+          <XCircle className="w-5 h-5 shrink-0" />
+          {fetchError}
+        </div>
+      )}
 
       {/* 주문 테이블 */}
       <Card className="bg-white/4 border-white/8">

@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
 import type { Order } from '@/lib/types'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function isAdminAuthenticated(cookieStore: Awaited<ReturnType<typeof cookies>>): boolean {
-  const session = cookieStore.get('admin_session')?.value
-  const adminPass = process.env.ADMIN_PASSWORD ?? 'sniper2026'
-  return session === adminPass || session === 'authenticated'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToPublicOrder(row: Record<string, any>) {
+  return {
+    id: row.id,
+    orderRef: row.order_ref ?? null,
+    productName: row.product_name,
+    quantity: Number(row.quantity),
+    totalPrice: Number(row.total_price),
+    status: row.status,
+    createdAt: row.created_at,
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,7 +75,7 @@ export async function GET(request: Request) {
 
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, order_ref, product_name, quantity, total_price, status, created_at')
         .eq('order_ref', ref)
         .single()
 
@@ -78,7 +86,7 @@ export async function GET(request: Request) {
         throw error
       }
 
-      return NextResponse.json({ order: rowToOrder(data) })
+      return NextResponse.json({ order: rowToPublicOrder(data) })
     } catch (err) {
       console.error('[GET /api/orders?ref]', err)
       return NextResponse.json({ error: '주문 조회 중 오류가 발생했습니다.' }, { status: 500 })

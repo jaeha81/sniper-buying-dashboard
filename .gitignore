@@ -2,6 +2,7 @@
 .next/
 out/
 build/
+tsconfig.tsbuildinfo
 
 # Dependencies
 node_modules/

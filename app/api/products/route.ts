@@ -1,16 +1,9 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { sampleProducts } from '@/data/sample-products'
 import type { Product } from '@/lib/types'
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-function isAdminAuthenticated(cookieStore: Awaited<ReturnType<typeof cookies>>): boolean {
-  const session = cookieStore.get('admin_session')?.value
-  const adminPass = process.env.ADMIN_PASSWORD ?? 'sniper2026'
-  return session === adminPass || session === 'authenticated'
-}
 
 // DB row (snake_case) → TypeScript Product (camelCase)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
