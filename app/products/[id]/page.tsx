@@ -13,6 +13,7 @@ import {
   Truck,
   FileText,
   Shield,
+  BarChart2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +23,66 @@ import { useCart } from '@/lib/cart-context'
 import { formatKRW, getCategoryLabel, getRiskLevelLabel, getStatusLabel } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
 import { useState } from 'react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
+
+function marginScore(marginRate: number): number {
+  if (marginRate >= 30) return 20
+  if (marginRate >= 25) return 16
+  if (marginRate >= 20) return 12
+  if (marginRate >= 15) return 8
+  if (marginRate >= 10) return 4
+  return 0
+}
+
+function riskScore(riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'): number {
+  if (riskLevel === 'LOW') return 10
+  if (riskLevel === 'MEDIUM') return 6
+  return 2
+}
+
+function competitionScore(competitionLevel: 'low' | 'medium' | 'high'): number {
+  if (competitionLevel === 'low') return 5
+  if (competitionLevel === 'medium') return 3
+  return 1
+}
+
+function getBarColor(value: number, max: number): string {
+  const pct = value / max
+  if (pct >= 0.8) return '#C9A84C'
+  if (pct >= 0.6) return '#D4A853'
+  if (pct >= 0.4) return '#8B7355'
+  return '#5C4A32'
+}
+
+interface ScoreIndicator {
+  label: string
+  key: string
+  max: number
+  value: number
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0]?.payload as ScoreIndicator
+    return (
+      <div className="bg-[#1a1a2e] border border-white/20 rounded-lg px-3 py-2 text-xs shadow-xl">
+        <p className="text-white/70 mb-0.5">{data.label}</p>
+        <p className="text-[#C9A84C] font-bold">
+          {data.value}점 / {data.max}점 만점
+        </p>
+      </div>
+    )
+  }
+  return null
+}
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -61,9 +122,59 @@ export default function ProductDetailPage() {
     HIGH: 'text-red-600 bg-red-50',
   }
 
-  // Customer-facing estimated total cost: domestic price + potential customs
   const estimatedTotal = product.domesticExpectedPrice
   const estimatedShipping = product.internationalShippingCost + product.domesticShippingCost
+
+  const scoreIndicators: ScoreIndicator[] = [
+    {
+      label: '국내수요',
+      key: 'demand',
+      max: 20,
+      value: Math.min(5, Math.max(1, product.demandScore)) * 4,
+    },
+    {
+      label: '가격경쟁력',
+      key: 'priceCompetitiveness',
+      max: 20,
+      value: Math.min(5, Math.max(1, product.priceCompetitivenessScore)) * 4,
+    },
+    {
+      label: '마진율',
+      key: 'margin',
+      max: 20,
+      value: marginScore(product.marginRate),
+    },
+    {
+      label: '배송안정성',
+      key: 'shippingStability',
+      max: 15,
+      value: Math.min(5, Math.max(1, product.shippingStabilityScore)) * 3,
+    },
+    {
+      label: '통관리스크',
+      key: 'customsRisk',
+      max: 10,
+      value: riskScore(product.riskLevel),
+    },
+    {
+      label: '경쟁강도',
+      key: 'competition',
+      max: 5,
+      value: competitionScore(product.competitionLevel),
+    },
+    {
+      label: '페이지설득력',
+      key: 'pageConvincing',
+      max: 5,
+      value: Math.min(5, Math.max(1, product.pageConvincingScore)),
+    },
+    {
+      label: '자동화적합도',
+      key: 'automation',
+      max: 5,
+      value: Math.min(5, Math.max(1, product.automationScore)),
+    },
+  ]
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
@@ -213,51 +324,128 @@ export default function ProductDetailPage() {
               견적 문의를 남겨주시면 구매 가능 여부를 확인해 드립니다.
             </div>
           )}
-
-          <div className="flex gap-3 flex-wrap">
-            {isActive && (
-              <Button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 min-w-[160px]"
-                onClick={handleAddToCart}
-              >
-                {added ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    담겼습니다!
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    장바구니 담기
-                  </>
-                )}
-              </Button>
-            )}
-
-            {isCandidate && (
-              <Button className="flex-1 min-w-[160px] bg-amber-600 hover:bg-amber-700">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                견적 문의하기
-              </Button>
-            )}
-
-            {isUnavailable && (
-              <Button className="flex-1 min-w-[160px]" disabled>
-                {product.status === 'paused' ? '일시 중지된 상품' : '판매 종료'}
-              </Button>
-            )}
-
-            <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="gap-2">
-                <ExternalLink className="w-4 h-4" />
-                원본 보기
-              </Button>
-            </a>
-            <Link href="/cart">
-              <Button variant="outline">장바구니 보기</Button>
-            </Link>
-          </div>
         </div>
+      </div>
+
+      {/* 스나이퍼 스코어 세부 분석 */}
+      <div className="mt-8">
+        <Card className="bg-[#0f0f1a] border-white/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-white">
+              <BarChart2 className="w-4 h-4 text-[#C9A84C]" />
+              스나이퍼 스코어 세부 분석
+            </CardTitle>
+            <p className="text-xs text-white/40 mt-0.5">8개 지표별 점수 분포</p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={scoreIndicators}
+                  layout="vertical"
+                  margin={{ top: 4, right: 48, left: 8, bottom: 4 }}
+                  barCategoryGap="28%"
+                >
+                  <XAxis
+                    type="number"
+                    domain={[0, 20]}
+                    tick={{ fill: '#ffffff40', fontSize: 11 }}
+                    axisLine={{ stroke: '#ffffff15' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={72}
+                    tick={{ fill: '#ffffff80', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
+                  <Bar dataKey="max" fill="#ffffff08" radius={[0, 3, 3, 0]} isAnimationActive={false} />
+                  <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+                    {scoreIndicators.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getBarColor(entry.value, entry.max)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 세부 점수 카드 그리드 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5">
+              {scoreIndicators.map((indicator) => {
+                const pct = indicator.value / indicator.max
+                return (
+                  <div
+                    key={indicator.key}
+                    className="bg-white/5 border border-white/8 rounded-lg p-3"
+                  >
+                    <p className="text-[11px] text-white/50 mb-1 leading-tight">{indicator.label}</p>
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-lg font-bold text-white">{indicator.value}</span>
+                      <span className="text-xs text-white/30">/{indicator.max}</span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-1">
+                      <div
+                        className="h-1 rounded-full transition-all"
+                        style={{
+                          width: `${pct * 100}%`,
+                          backgroundColor: getBarColor(indicator.value, indicator.max),
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 상품 액션 */}
+      <div className="mt-6 flex gap-3 flex-wrap">
+        {isActive && (
+          <Button
+            className="flex-1 bg-blue-600 hover:bg-blue-700 min-w-[160px]"
+            onClick={handleAddToCart}
+          >
+            {added ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                담겼습니다!
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                장바구니 담기
+              </>
+            )}
+          </Button>
+        )}
+
+        {isCandidate && (
+          <Button className="flex-1 min-w-[160px] bg-amber-600 hover:bg-amber-700">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            견적 문의하기
+          </Button>
+        )}
+
+        {isUnavailable && (
+          <Button className="flex-1 min-w-[160px]" disabled>
+            {product.status === 'paused' ? '일시 중지된 상품' : '판매 종료'}
+          </Button>
+        )}
+
+        <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" className="gap-2">
+            <ExternalLink className="w-4 h-4" />
+            원본 보기
+          </Button>
+        </a>
+        <Link href="/cart">
+          <Button variant="outline">장바구니 보기</Button>
+        </Link>
       </div>
     </div>
   )

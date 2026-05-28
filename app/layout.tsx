@@ -7,9 +7,25 @@ import { CartNavButton } from '@/components/cart-nav-button'
 import { AuthNavButton } from '@/components/auth-nav-button'
 
 export const metadata: Metadata = {
-  title: '스나이퍼 구매대행 | Sniper Buying',
-  description: '데이터 기반 스나이퍼 스코어로 엄선된 해외 직구. 검증된 마진율과 통관 안정성.',
-  keywords: ['해외구매대행', '직구', '스나이퍼스코어', '마진계산', 'iHerb', 'Amazon'],
+  title: {
+    default: '스나이퍼 구매대행 | 검증된 해외직구 플랫폼',
+    template: '%s | 스나이퍼 구매대행',
+  },
+  description:
+    '스나이퍼 스코어 8개 지표로 검증된 해외직구 상품. 평균 마진율 28%, iHerb·Amazon 소싱. 관세 리스크 없이 안전하게.',
+  keywords: ['해외구매대행', '직구', '스나이퍼스코어', '마진계산', 'iHerb', 'Amazon', '통관', '해외직구'],
+  openGraph: {
+    title: '스나이퍼 구매대행 | 검증된 해외직구 플랫폼',
+    description: '스나이퍼 스코어 8개 지표로 검증된 해외직구. 평균 마진율 28%.',
+    url: 'https://sniper-buying-dashboard.vercel.app',
+    siteName: '스나이퍼 구매대행',
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -131,7 +147,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   © 2026 스나이퍼 구매대행. All rights reserved.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  환율 기준: 1 USD = 1,350 KRW · v0.2
+                  환율 기준: 1 USD = 1,350 KRW · v1.0
                 </p>
               </div>
             </div>

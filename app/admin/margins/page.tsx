@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Calculator, RefreshCw, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { Calculator, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Wifi } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,6 +81,19 @@ export default function MarginsPage() {
   const [input, setInput] = useState<MarginInput>(defaultInput)
   const [sniperInput, setSniperInput] = useState<SniperInput>(defaultSniperInput)
   const [calculated, setCalculated] = useState(false)
+  const [liveRate, setLiveRate] = useState<{ rate: number; updatedAt: string | null } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/exchange-rate')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.rate) {
+          setLiveRate(data)
+          setInput((prev) => ({ ...prev, exchangeRate: data.rate }))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const marginResult = calculateMargin(input)
   const updatedSniperInput: SniperInput = {
@@ -117,10 +130,18 @@ export default function MarginsPage() {
           <h1 className="text-2xl font-bold text-gray-900">마진 계산기</h1>
           <p className="text-gray-500 mt-1">해외 구매대행 마진과 스나이퍼 스코어를 실시간으로 계산합니다</p>
         </div>
-        <Button variant="outline" size="sm" onClick={resetAll}>
-          <RefreshCw className="w-4 h-4 mr-1" />
-          초기화
-        </Button>
+        <div className="flex items-center gap-3">
+          {liveRate && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 border border-emerald-400/20 bg-emerald-400/5 px-3 py-1.5 rounded-full">
+              <Wifi className="w-3 h-3" />
+              실시간 환율 1 USD = {liveRate.rate.toLocaleString()} KRW
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={resetAll}>
+            <RefreshCw className="w-4 h-4 mr-1" />
+            초기화
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
