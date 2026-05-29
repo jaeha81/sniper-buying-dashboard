@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Beauty product">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241421"/>
+      <stop offset="1" stop-color="#5a2b4e"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#g)"/>
+  <circle cx="320" cy="320" r="180" fill="#f3d788" opacity=".1"/>
+  <rect x="260" y="210" width="120" height="260" rx="38" fill="#f3d788"/>
+  <rect x="280" y="160" width="80" height="76" rx="18" fill="#c9a84c"/>
+  <path d="M222 292c64 42 132 42 196 0M230 365c58 38 122 38 180 0" stroke="#5a2b4e" stroke-width="18" stroke-linecap="round"/>
+</svg>

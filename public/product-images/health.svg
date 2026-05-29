@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Health product">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10251d"/>
+      <stop offset="1" stop-color="#214b38"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="640" fill="url(#g)"/>
+  <circle cx="320" cy="320" r="178" fill="#f3d788" opacity=".12"/>
+  <rect x="260" y="150" width="120" height="340" rx="60" fill="#f3d788"/>
+  <rect x="285" y="175" width="70" height="290" rx="35" fill="#113126"/>
+  <path d="M320 224v192M224 320h192" stroke="#f3d788" stroke-width="34" stroke-linecap="round"/>
+</svg>

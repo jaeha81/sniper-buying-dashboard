@@ -53,22 +53,21 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: index * 0.07, ease: 'easeOut' }}
     >
-      <Link href={`/products/${product.id}`} className="block group">
-        <div
-          className="card-luxury rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 ease-out group-hover:scale-[1.015]"
-          style={{
-            boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-          }}
-          onMouseEnter={(e) => {
-            ;(e.currentTarget as HTMLDivElement).style.boxShadow =
-              '0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.35), 0 0 20px rgba(201,168,76,0.08)'
-          }}
-          onMouseLeave={(e) => {
-            ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(0,0,0,0.4)'
-          }}
-        >
-          {/* Product image — aspect ratio 4:3 via padding trick */}
+      <div
+        className="card-luxury rounded-2xl overflow-hidden group transition-all duration-300 ease-out hover:scale-[1.015]"
+        style={{
+          boxShadow: '0 2px 16px rgba(0,0,0,0.4)',
+          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+        }}
+        onMouseEnter={(e) => {
+          ;(e.currentTarget as HTMLDivElement).style.boxShadow =
+            '0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.35), 0 0 20px rgba(201,168,76,0.08)'
+        }}
+        onMouseLeave={(e) => {
+          ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(0,0,0,0.4)'
+        }}
+      >
+        <Link href={`/products/${product.id}`} className="block cursor-pointer">
           <div className="product-img-wrap relative" style={{ paddingTop: '75%' }}>
             <div className="absolute inset-0">
               <ProductImage
@@ -80,7 +79,6 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-luxury-surface via-transparent to-transparent opacity-60" />
 
-            {/* Badges */}
             <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
               <span className="text-[10px] font-medium tracking-widest uppercase bg-black/50 text-gold-light backdrop-blur-sm px-2 py-1 rounded-md border border-gold/20">
                 {getCategoryLabel(product.category)}
@@ -92,7 +90,6 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
               )}
             </div>
 
-            {/* Score ring */}
             <div className="absolute bottom-3 right-3">
               <div
                 className="w-11 h-11 rounded-full flex items-center justify-center"
@@ -111,13 +108,11 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
             </div>
           </div>
 
-          {/* Content */}
           <div className="p-4 space-y-3">
             <h3 className="font-serif text-base font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-gold-light transition-colors">
               {product.name}
             </h3>
 
-            {/* Price row — customer: domestic price only. Admin: also shows sourcing price */}
             <div className="flex items-end justify-between">
               {showAdminInfo ? (
                 <div>
@@ -140,7 +135,6 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
               </div>
             </div>
 
-            {/* Admin-only: margin info */}
             {showAdminInfo && (
               <div className="flex items-center justify-between pt-1 border-t border-white/5">
                 <div className="flex items-center gap-1.5">
@@ -172,64 +166,70 @@ export function ProductCard({ product, showAdminInfo = false, index = 0 }: Produ
                 </div>
               </div>
             )}
-
-            <div className="flex gap-2 pt-1" onClick={(e) => e.preventDefault()}>
-              {isActive && (
-                <Button
-                  size="sm"
-                  className="flex-1 bg-gold hover:bg-gold-light text-luxury-bg font-semibold text-xs transition-all"
-                  onClick={handleAddToCart}
-                >
-                  {added ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                      담김
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-                      담기
-                    </>
-                  )}
-                </Button>
-              )}
-
-              {isCandidate && (
-                <Link href={`/products/${product.id}`} className="flex-1">
-                  <Button
-                    size="sm"
-                    className="w-full bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 font-semibold text-xs transition-all"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 mr-1" />
-                    견적 문의
-                  </Button>
-                </Link>
-              )}
-
-              {isUnavailable && (
-                <Button
-                  size="sm"
-                  className="flex-1 opacity-40 cursor-not-allowed text-xs"
-                  disabled
-                >
-                  판매 중지
-                </Button>
-              )}
-
-              <a href={product.sourceUrl} target="_blank" rel="noopener noreferrer">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-white/10 hover:border-gold/30 hover:text-gold text-muted-foreground"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Button>
-              </a>
-            </div>
           </div>
+        </Link>
+
+        <div className="flex gap-2 px-4 pb-4 pt-1">
+          {isActive && (
+            <Button
+              size="sm"
+              className="flex-1 bg-gold hover:bg-gold-light text-luxury-bg font-semibold text-xs transition-all"
+              onClick={handleAddToCart}
+            >
+              {added ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                  담김
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                  담기
+                </>
+              )}
+            </Button>
+          )}
+
+          {isCandidate && (
+            <Button
+              asChild
+              size="sm"
+              className="flex-1 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-600/30 font-semibold text-xs transition-all"
+            >
+              <Link href={`/products/${product.id}`}>
+                <MessageSquare className="w-3.5 h-3.5 mr-1" />
+                견적 문의
+              </Link>
+            </Button>
+          )}
+
+          {isUnavailable && (
+            <Button
+              size="sm"
+              className="flex-1 opacity-40 cursor-not-allowed text-xs"
+              disabled
+            >
+              판매 중지
+            </Button>
+          )}
+
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-white/10 hover:border-gold/30 hover:text-gold text-muted-foreground"
+          >
+            <a
+              href={product.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${product.name} 원문 보기`}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </Button>
         </div>
-      </Link>
+      </div>
     </motion.div>
   )
 }
-
