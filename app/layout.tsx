@@ -237,7 +237,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  환율 기준: 1 USD = 1,350 KRW · v1.0
+                  환율 기준: 1 USD = 1,350 KRW · v0.2
                 </p>
               </div>
             </div>

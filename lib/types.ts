@@ -1,7 +1,7 @@
 export interface Product {
   id: string
   name: string
-  category: 'health' | 'sports' | 'beauty' | 'outdoor' | 'electronics'
+  category: 'health' | 'sports' | 'beauty' | 'outdoor' | 'electronics' | 'food' | 'medicine'
   description: string
   overseasPrice: number // USD
   localShippingCost: number // USD (현지배송비)
@@ -113,4 +113,6 @@ export type CategoryLabel = {
   beauty: '뷰티'
   outdoor: '아웃도어'
   electronics: '전자기기'
+  food: '식품·음식류'
+  medicine: '의약품·의약외품'
 }

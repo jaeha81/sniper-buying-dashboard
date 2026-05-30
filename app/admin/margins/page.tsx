@@ -6,9 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { calculateMargin, calculateSniperScore, DEFAULT_EXCHANGE_RATE } from '@/lib/calculator'
+import { calculateMargin, calculateSniperScore, DEFAULT_EXCHANGE_RATE, getCustomsInfo } from '@/lib/calculator'
 import { formatKRW, formatUSD } from '@/lib/utils'
 import type { MarginInput, SniperInput } from '@/lib/types'
+
+const CATEGORY_OPTIONS = [
+  { value: 'health', label: '건강식품' },
+  { value: 'beauty', label: '뷰티' },
+  { value: 'sports', label: '운동용품' },
+  { value: 'outdoor', label: '아웃도어' },
+  { value: 'electronics', label: '전자기기' },
+  { value: 'food', label: '식품·음식류' },
+  { value: 'medicine', label: '의약품·의약외품' },
+]
 
 const defaultInput: MarginInput = {
   overseasPrice: 0,
@@ -82,6 +92,7 @@ export default function MarginsPage() {
   const [sniperInput, setSniperInput] = useState<SniperInput>(defaultSniperInput)
   const [calculated, setCalculated] = useState(false)
   const [liveRate, setLiveRate] = useState<{ rate: number; updatedAt: string | null } | null>(null)
+  const [category, setCategory] = useState('health')
 
   useEffect(() => {
     fetch('/api/exchange-rate')
@@ -96,6 +107,9 @@ export default function MarginsPage() {
   }, [])
 
   const marginResult = calculateMargin(input)
+  // 통관 기준액 = 물품가 + 현지배송비 + 국제배송비 (국내배송비·수수료 제외)
+  const customsDeclaredKRW = marginResult.overseasPriceKRW + marginResult.localShippingCostKRW + input.internationalShippingCost
+  const customsInfo = getCustomsInfo(customsDeclaredKRW, category)
   const updatedSniperInput: SniperInput = {
     ...sniperInput,
     marginRate: marginResult.marginRate,
@@ -246,7 +260,7 @@ export default function MarginsPage() {
                 판매 설정
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <InputField
                 label="국내 판매 예상가"
                 id="domesticExpectedPrice"
@@ -255,6 +269,20 @@ export default function MarginsPage() {
                 prefix="₩"
                 hint="국내 쇼핑몰 예상 판매가"
               />
+              <div className="space-y-1.5">
+                <Label htmlFor="category">상품 카테고리</Label>
+                <p className="text-xs text-gray-400">통관 안내 자동 계산에 사용됩니다</p>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </CardContent>
           </Card>
 
@@ -335,7 +363,7 @@ export default function MarginsPage() {
 
         {/* 결과 패널 */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="sticky top-20 space-y-4">
+          <div className="sticky top-[148px] space-y-4">
             {/* 마진 결과 */}
             <Card className={isInputFilled ? 'border-blue-200' : ''}>
               <CardHeader>
@@ -439,6 +467,33 @@ export default function MarginsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 통관 안내 */}
+            {isInputFilled && (
+              <Card className={customsInfo.actionRequired ? 'border-amber-200' : 'border-green-200'}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    {customsInfo.actionRequired ? (
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    )}
+                    통관 안내
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    customsInfo.clearanceType === '목록통관'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {customsInfo.clearanceType}
+                  </div>
+                  <p className="text-xs text-gray-600">{customsInfo.thresholdNote}</p>
+                  <p className="text-xs text-gray-400 border-t pt-2">{customsInfo.categoryNote}</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* 스나이퍼 스코어 결과 */}
             <Card>

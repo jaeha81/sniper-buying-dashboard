@@ -139,29 +139,127 @@ export function calculateSniperScore(input: SniperInput): SniperScoreResult {
   }
 }
 
+/** 카테고리별 통관 리스크 기준 — 품목 특성 + 관세율 복합 판단 */
+const CUSTOMS_CATEGORY_RULES: Record<
+  string,
+  { baseRisk: RiskLevel; highDutyThreshold: number; mediumDutyThreshold: number; notes: string }
+> = {
+  electronics: {
+    baseRisk: 'MEDIUM',
+    highDutyThreshold: 8,
+    mediumDutyThreshold: 0,
+    notes: '전파인증(KC) 미보유 시 통관 불가. 리튬배터리 항공위험물 규정 적용.',
+  },
+  food: {
+    baseRisk: 'HIGH',
+    highDutyThreshold: 0,
+    mediumDutyThreshold: 0,
+    notes: '식품위생법 적용. 성분표·원산지 표기 필수. 검역 대상 가능성 높음.',
+  },
+  medicine: {
+    baseRisk: 'HIGH',
+    highDutyThreshold: 0,
+    mediumDutyThreshold: 0,
+    notes: '의약품·의약외품은 개인 사용 목적 소량만 허용. 사전 허가 필요.',
+  },
+  health: {
+    baseRisk: 'LOW',
+    highDutyThreshold: 20,
+    mediumDutyThreshold: 10,
+    notes: '건강기능식품은 성분·용량 확인 필요. 프로바이오틱스 등 일부 검역 대상.',
+  },
+  beauty: {
+    baseRisk: 'LOW',
+    highDutyThreshold: 20,
+    mediumDutyThreshold: 10,
+    notes: '화장품 성분 규제 확인 필요. 미백·자외선차단 기능성 제품은 별도 신고.',
+  },
+  sports: {
+    baseRisk: 'LOW',
+    highDutyThreshold: 13,
+    mediumDutyThreshold: 6.5,
+    notes: '일반 스포츠용품은 통관 무난. 보호대 등 의료기기 분류 여부 확인.',
+  },
+  outdoor: {
+    baseRisk: 'LOW',
+    highDutyThreshold: 13,
+    mediumDutyThreshold: 6.5,
+    notes: '캠핑·아웃도어 용품 일반적으로 무난. 수입 금지 소재(특정 합금 등) 확인.',
+  },
+}
+
+const CUSTOMS_THRESHOLD_KRW = 150 * DEFAULT_EXCHANGE_RATE // 목록통관 한도 (미화 150달러 × 기준환율)
+
 /**
  * 관세율과 카테고리를 기반으로 위험 레벨 계산
+ * food/medicine은 관세율 무관 HIGH 고정
  */
 export function getRiskLevel(customsDutyRate: number, category: string): RiskLevel {
-  // 카테고리별 기본 위험도
-  const highRiskCategories = ['electronics']
-  const lowRiskCategories = ['health', 'beauty']
-
-  if (highRiskCategories.includes(category)) {
-    if (customsDutyRate > 8) return 'HIGH'
-    return 'MEDIUM'
-  }
-
-  if (lowRiskCategories.includes(category)) {
-    if (customsDutyRate > 20) return 'HIGH'
-    if (customsDutyRate > 10) return 'MEDIUM'
+  const rule = CUSTOMS_CATEGORY_RULES[category]
+  if (!rule) {
+    if (customsDutyRate > 13) return 'HIGH'
+    if (customsDutyRate > 6.5) return 'MEDIUM'
     return 'LOW'
   }
 
-  // 기본 로직 (sports, outdoor 등)
-  if (customsDutyRate > 13) return 'HIGH'
-  if (customsDutyRate > 6.5) return 'MEDIUM'
-  return 'LOW'
+  if (rule.baseRisk === 'HIGH') return 'HIGH'
+
+  if (customsDutyRate > rule.highDutyThreshold) return 'HIGH'
+  if (customsDutyRate > rule.mediumDutyThreshold) return 'MEDIUM'
+  return rule.baseRisk
+}
+
+/** 목록통관/일반통관 분기 안내 */
+export interface CustomsInfo {
+  clearanceType: '목록통관' | '일반통관'
+  thresholdNote: string
+  categoryNote: string
+  actionRequired: boolean
+}
+
+/**
+ * 상품 총액(KRW)과 카테고리를 기반으로 통관 안내 반환
+ * 목록통관: 미화 150달러 이하, food/medicine/electronics 제외
+ */
+export function getCustomsInfo(totalPriceKRW: number, category: string): CustomsInfo {
+  const rule = CUSTOMS_CATEGORY_RULES[category]
+  const categoryNote = rule?.notes ?? '표준 통관 절차 적용.'
+
+  // 식품·의약품은 금액 무관 일반통관
+  if (category === 'food' || category === 'medicine') {
+    return {
+      clearanceType: '일반통관',
+      thresholdNote: '식품·의약품은 금액 무관 일반통관 및 검역 대상입니다.',
+      categoryNote,
+      actionRequired: true,
+    }
+  }
+
+  // 전자제품은 금액 무관 일반통관 + KC 확인 필요
+  if (category === 'electronics') {
+    return {
+      clearanceType: '일반통관',
+      thresholdNote: '전자제품은 금액 무관 일반통관. KC 전파인증 필수 확인.',
+      categoryNote,
+      actionRequired: true,
+    }
+  }
+
+  if (totalPriceKRW <= CUSTOMS_THRESHOLD_KRW) {
+    return {
+      clearanceType: '목록통관',
+      thresholdNote: `총액 ${totalPriceKRW.toLocaleString()}원 — 150달러 이하 목록통관 적용 가능. 관부가세 면제.`,
+      categoryNote,
+      actionRequired: false,
+    }
+  }
+
+  return {
+    clearanceType: '일반통관',
+    thresholdNote: `총액 ${totalPriceKRW.toLocaleString()}원 — 150달러 초과 일반통관. 관부가세 납부 필요.`,
+    categoryNote,
+    actionRequired: true,
+  }
 }
 
 /**
