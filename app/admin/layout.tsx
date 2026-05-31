@@ -13,10 +13,12 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  BotMessageSquare,
 } from 'lucide-react'
 
 const adminNavItems = [
   { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
+  { href: '/admin/agent-command', label: 'Agent Command', icon: BotMessageSquare },
   { href: '/admin/margins', label: '마진 계산기', icon: Calculator },
   { href: '/admin/products', label: '상품 관리', icon: Package },
   { href: '/admin/product-candidates', label: '후보 검토', icon: FileText },

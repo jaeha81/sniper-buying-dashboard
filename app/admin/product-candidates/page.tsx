@@ -45,16 +45,46 @@ export default function ProductCandidatesPage() {
       ? Math.round(candidates.reduce((sum, p) => sum + p.sniperScore, 0) / candidates.length)
       : 0
 
-  const handleApprove = (id: string, name: string) => {
+  const handleApprove = async (id: string, name: string) => {
+    try {
+      await fetch('/api/agent-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentType: 'product_discovery',
+          actionType: 'approve_product',
+          title: `상품 승인 요청: ${name}`,
+          recommendation: '후보 검토 화면에서 관리자가 승인 요청을 생성했습니다.',
+          targetType: 'product',
+          targetId: id,
+          priority: 'high',
+        }),
+      })
+    } catch {
+      // 작업 생성 실패 시에도 로컬 상태는 갱신
+    }
     setActionLog((prev) => ({ ...prev, [id]: 'approved' }))
-    // TODO: 실제 상태 변경 API 연동
-    alert(`TODO: "${name}" 승인 처리`)
   }
 
-  const handleReject = (id: string, name: string) => {
+  const handleReject = async (id: string, name: string) => {
+    try {
+      await fetch('/api/agent-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentType: 'product_discovery',
+          actionType: 'review_candidate',
+          title: `후보 거절: ${name}`,
+          recommendation: '후보 검토 화면에서 관리자가 거절 처리했습니다.',
+          targetType: 'product',
+          targetId: id,
+          priority: 'low',
+        }),
+      })
+    } catch {
+      // 작업 생성 실패 시에도 로컬 상태는 갱신
+    }
     setActionLog((prev) => ({ ...prev, [id]: 'rejected' }))
-    // TODO: 실제 상태 변경 API 연동
-    alert(`TODO: "${name}" 거절 처리`)
   }
 
   return (
