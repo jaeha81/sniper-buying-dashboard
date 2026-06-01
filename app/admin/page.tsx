@@ -14,14 +14,13 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { sampleProducts } from '@/data/sample-products'
 import { formatKRW, getCategoryLabel, getStatusLabel } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
 import { ProductFormModal } from '@/components/product-form-modal'
 import type { Product } from '@/lib/types'
 
 export default function AdminPage() {
-  const [products, setProducts] = useState<Product[]>(sampleProducts)
+  const [products, setProducts] = useState<Product[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
@@ -32,10 +31,9 @@ export default function AdminPage() {
       const data = await res.json()
       // API returns { products: [...] } or array directly
       const list: Product[] = Array.isArray(data) ? data : (data.products ?? [])
-      if (list.length > 0) setProducts(list)
+      setProducts(list)
     } catch {
-      // Fall back to sample data
-      setProducts(sampleProducts)
+      // API unavailable — leave empty
     }
   }, [])
 
