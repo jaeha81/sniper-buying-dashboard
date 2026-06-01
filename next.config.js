@@ -15,8 +15,9 @@ const nextConfig = {
   webpack: (config) => {
     config.resolve.conditionNames = [
       'import',
-      ...(config.resolve.conditionNames ?? []),
+      ...(config.resolve.conditionNames || []).filter((name) => name !== 'import'),
     ]
+
     return config
   },
 }

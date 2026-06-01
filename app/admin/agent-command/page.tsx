@@ -213,6 +213,7 @@ export default function AgentCommandPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actingIds, setActingIds] = useState<Set<string>>(new Set())
+  const [runningScan, setRunningScan] = useState(false)
   const [activeSection, setActiveSection] = useState<'tasks' | 'findings' | 'logs' | 'margins' | 'orders'>('tasks')
 
   const fetchData = useCallback(async () => {
@@ -238,6 +239,31 @@ export default function AgentCommandPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  const handleRunScan = useCallback(async () => {
+    setRunningScan(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/agent-runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ triggerType: 'manual_admin' }),
+      })
+      if (res.status === 401) {
+        setError('인증이 필요합니다. 다시 로그인해 주세요.')
+        return
+      }
+      if (!res.ok) {
+        setError(`에이전트 실행에 실패했습니다. (HTTP ${res.status})`)
+        return
+      }
+      await fetchData()
+    } catch {
+      setError('에이전트 실행 중 네트워크 오류가 발생했습니다.')
+    } finally {
+      setRunningScan(false)
+    }
+  }, [fetchData])
 
   const handleTaskAction = useCallback(async (
     id: string,
@@ -292,8 +318,16 @@ export default function AgentCommandPage() {
           <p className="text-gray-500 mt-1 text-sm">오늘의 에이전트 현황과 우선순위 작업을 관리합니다</p>
         </div>
         <button
+          onClick={handleRunScan}
+          disabled={loading || runningScan}
+          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg border border-blue-200 hover:border-blue-300 transition-all disabled:opacity-50"
+        >
+          <Zap className={`w-3.5 h-3.5 ${runningScan ? 'animate-pulse' : ''}`} />
+            에이전트 실행
+        </button>
+        <button
           onClick={fetchData}
-          disabled={loading}
+          disabled={loading || runningScan}
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-all disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
