@@ -41,7 +41,29 @@ export async function runMarginMonitor(currentRate: number): Promise<MonitorResu
     }
   }
 
-  const { data: products, error } = await supabase
+  type ProductRow = {
+    id: string
+    name: string
+    category: string
+    overseas_price: number
+    local_shipping_cost: number
+    international_shipping_cost: number
+    domestic_expected_price: number
+    tax_estimate: number
+    payment_fee: number
+    domestic_shipping_cost: number
+    other_costs: number
+    demand_score: number
+    price_competitiveness_score: number
+    shipping_stability_score: number
+    competition_level: string
+    page_convincing_score: number
+    automation_score: number
+    risk_level: string
+    margin_rate: number
+  }
+
+  const { data: rawProducts, error } = await supabase
     .from('products')
     .select(
       'id, name, category, overseas_price, local_shipping_cost, international_shipping_cost, ' +
@@ -51,7 +73,10 @@ export async function runMarginMonitor(currentRate: number): Promise<MonitorResu
     )
     .in('status', ['active', 'candidate'])
 
-  if (error || !products) throw error ?? new Error('No products')
+  if (error) throw error
+  if (!rawProducts) throw new Error('No products')
+
+  const products = rawProducts as unknown as ProductRow[]
 
   let recalculated = 0
   let alerts = 0
@@ -78,8 +103,8 @@ export async function runMarginMonitor(currentRate: number): Promise<MonitorResu
       priceCompetitivenessScore: p.price_competitiveness_score,
       marginRate: margin.marginRate,
       shippingStabilityScore: p.shipping_stability_score,
-      riskLevel: p.risk_level,
-      competitionLevel: p.competition_level,
+      riskLevel: p.risk_level as 'LOW' | 'MEDIUM' | 'HIGH',
+      competitionLevel: p.competition_level as 'low' | 'medium' | 'high',
       pageConvincingScore: p.page_convincing_score,
       automationScore: p.automation_score,
     })
