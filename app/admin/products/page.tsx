@@ -1,45 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Plus, Pencil, Trash2 } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { sampleProducts } from '@/data/sample-products'
 import { getCategoryLabel, getRiskLevelLabel, getStatusLabel } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
+import type { Product } from '@/lib/types'
 
 export default function AdminProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/products')
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data.products ?? [])
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchProducts() }, [fetchProducts])
 
   const filtered =
     statusFilter === 'all'
-      ? sampleProducts
-      : sampleProducts.filter((p) => p.status === statusFilter)
+      ? products
+      : products.filter((p) => p.status === statusFilter)
+
+  const count = (s: string) => products.filter((p) => p.status === s).length
 
   const statusFilters = [
-    { key: 'all', label: '전체', count: sampleProducts.length },
-    {
-      key: 'active',
-      label: '판매중',
-      count: sampleProducts.filter((p) => p.status === 'active').length,
-    },
-    {
-      key: 'candidate',
-      label: '검토중',
-      count: sampleProducts.filter((p) => p.status === 'candidate').length,
-    },
-    {
-      key: 'paused',
-      label: '일시중지',
-      count: sampleProducts.filter((p) => p.status === 'paused').length,
-    },
-    {
-      key: 'discontinued',
-      label: '중단',
-      count: sampleProducts.filter((p) => p.status === 'discontinued').length,
-    },
+    { key: 'all', label: '전체', count: products.length },
+    { key: 'active', label: '판매중', count: count('active') },
+    { key: 'candidate', label: '검토중', count: count('candidate') },
+    { key: 'paused', label: '일시중지', count: count('paused') },
+    { key: 'discontinued', label: '중단', count: count('discontinued') },
   ]
 
   function getSniperScoreBg(score: number): string {
@@ -84,10 +89,20 @@ export default function AdminProductsPage() {
             <h1 className="text-2xl font-bold text-gray-900">상품 관리</h1>
             <p className="text-gray-500 mt-1">전체 상품 목록 및 상태 관리</p>
           </div>
-          <Button onClick={() => alert('TODO: 상품 추가 모달')}>
-            <Plus className="w-4 h-4 mr-2" />
-            상품 추가
-          </Button>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchProducts}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              새로고침
+            </button>
+            <Button onClick={() => alert('TODO: 상품 추가 모달')}>
+              <Plus className="w-4 h-4 mr-2" />
+              상품 추가
+            </Button>
+          </div>
         </div>
       </div>
 

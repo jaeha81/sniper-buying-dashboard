@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, SlidersHorizontal, ChevronDown, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ProductCard } from '@/components/product-card'
-import { sampleProducts } from '@/data/sample-products'
+import { sampleProducts } from '@/data/sample-products'  // Phase 4: SSR 초기값 fallback
 import { getCategoryLabel } from '@/lib/utils'
 import type { Product } from '@/lib/types'
 
@@ -52,6 +52,7 @@ const SCORE_OPTIONS: { value: MinScore; label: string }[] = [
 ]
 
 export default function ProductsPage() {
+  const [allProducts, setAllProducts] = useState<Product[]>(sampleProducts)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all')
   const [selectedSort, setSelectedSort] = useState<SortKey>('sniperScore')
@@ -59,6 +60,14 @@ export default function ProductsPage() {
   const [selectedRisk, setSelectedRisk] = useState<FilterRisk>('all')
   const [minScore, setMinScore] = useState<MinScore>(0)
   const [filterOpen, setFilterOpen] = useState(false)
+
+  // Phase 4: 마운트 후 Supabase products로 갱신
+  useEffect(() => {
+    fetch('/api/products')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.products?.length) setAllProducts(data.products) })
+      .catch(() => {})
+  }, [])
 
   const activeFilterCount = [
     selectedCategory !== 'all',
@@ -77,7 +86,7 @@ export default function ProductsPage() {
   }
 
   const filteredProducts = useMemo(() => {
-    let products = [...sampleProducts]
+    let products = [...allProducts]
     if (selectedCategory !== 'all') products = products.filter((p) => p.category === selectedCategory)
     if (selectedStatus !== 'all') products = products.filter((p) => p.status === selectedStatus)
     if (selectedRisk !== 'all') products = products.filter((p) => p.riskLevel === selectedRisk)
@@ -98,7 +107,7 @@ export default function ProductsPage() {
       }
     })
     return products
-  }, [searchQuery, selectedCategory, selectedSort, selectedStatus, selectedRisk, minScore])
+  }, [allProducts, searchQuery, selectedCategory, selectedSort, selectedStatus, selectedRisk, minScore])
 
   return (
     <div className="min-h-screen bg-luxury-bg">

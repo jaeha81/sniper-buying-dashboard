@@ -4,6 +4,7 @@ import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { buildAgentAutomationPlan, type AgentAutomationTrigger } from '@/lib/agent-automation'
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { notifyAdmin } from '@/lib/notify'
 
 type ProductRow = {
   id: string
@@ -230,6 +231,25 @@ export async function POST(request: Request) {
       started_at: nowIso,
       completed_at: new Date().toISOString(),
     })
+
+    // Phase 5: critical findings 발생 시 관리자 알림
+    const criticalFindings = newFindings.filter((f) => f.severity === 'critical')
+    if (criticalFindings.length > 0) {
+      const lines = criticalFindings
+        .map((f) => `• [${f.agentType}] ${f.title}`)
+        .join('\n')
+      notifyAdmin(
+        `${criticalFindings.length}개 위험 발견\n${lines}`,
+        'critical',
+        { trigger: triggerType, totalTasks: newTasks.length }
+      ).catch(() => {})
+    } else if (newTasks.length > 0) {
+      notifyAdmin(
+        `에이전트 스캔 완료 — ${newTasks.length}개 태스크 생성`,
+        'info',
+        { trigger: triggerType, findings: newFindings.length }
+      ).catch(() => {})
+    }
 
     return NextResponse.json({
       triggerType,

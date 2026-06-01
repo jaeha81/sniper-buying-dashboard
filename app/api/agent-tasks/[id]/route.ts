@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
+import { notifyAdmin } from '@/lib/notify'
+import { RISKY_AGENT_ACTIONS } from '@/lib/agents'
 
 type TaskMutationAction = 'approve' | 'reject' | 'complete' | 'fail' | 'cancel'
 
@@ -12,6 +14,8 @@ const ACTION_TO_STATUS: Record<TaskMutationAction, string> = {
   fail: 'failed',
   cancel: 'cancelled',
 }
+
+const RISKY_SET = new Set(RISKY_AGENT_ACTIONS)
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -55,6 +59,15 @@ export async function PUT(
     }
     console.error(`[PUT /api/agent-tasks/${id}]`, error)
     return NextResponse.json({ error: 'Failed to update agent task.' }, { status: 500 })
+  }
+
+  // Phase 5: 위험 액션 승인 시 Slack 알림
+  if (body.action === 'approve' && RISKY_SET.has(data.action_type)) {
+    notifyAdmin(
+      `⚡ 위험 액션 승인됨: ${data.title}`,
+      'warning',
+      { actionType: data.action_type, agentType: data.agent_type, priority: data.priority }
+    ).catch(() => {})
   }
 
   return NextResponse.json({ task: data })

@@ -105,9 +105,27 @@ export default function AdminOrdersPage() {
         body: JSON.stringify({ status: newStatus }),
       })
       if (res.ok) {
+        const order = orders.find((o) => o.id === orderId)
         setOrders((prev) =>
           prev.map((o) => (o.id === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o))
         )
+        // Phase 3: 취소 또는 배송 지연 의심 시 agent_task 생성
+        if (newStatus === 'cancelled' && order) {
+          fetch('/api/agent-tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              agentType: 'order_ops',
+              actionType: 'update_order_status',
+              title: `주문 취소 처리: ${order.productName}`,
+              recommendation: `관리자가 주문을 취소 처리했습니다. 고객 환불/알림이 필요한지 확인하세요.`,
+              targetType: 'order',
+              targetId: orderId,
+              priority: 'high',
+              payload: { previousStatus: order.status, newStatus, orderRef: order.orderRef },
+            }),
+          }).catch(() => {})
+        }
       }
     } catch {
       // silent fail — UI stays unchanged

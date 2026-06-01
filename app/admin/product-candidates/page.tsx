@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, TrendingUp, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { sampleProducts } from '@/data/sample-products'
 import { getRiskLevelLabel, formatKRW } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
 import type { Product } from '@/lib/types'
@@ -33,12 +32,28 @@ function getRiskBadgeVariant(risk: string): 'success' | 'warning' | 'danger' {
 }
 
 export default function ProductCandidatesPage() {
+  const [candidates, setCandidates] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [actionLog, setActionLog] = useState<Record<string, 'approved' | 'rejected'>>({})
 
-  // candidate 상품만 스나이퍼 스코어 내림차순 정렬
-  const candidates = [...sampleProducts]
-    .filter((p) => p.status === 'candidate')
-    .sort((a, b) => b.sniperScore - a.sniperScore)
+  const fetchCandidates = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/products?status=candidate')
+      if (res.ok) {
+        const data = await res.json()
+        const sorted = [...(data.products ?? [])]
+          .sort((a: Product, b: Product) => b.sniperScore - a.sniperScore)
+        setCandidates(sorted)
+      }
+    } catch {
+      // silent — keeps empty array
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchCandidates() }, [fetchCandidates])
 
   const avgScore =
     candidates.length > 0
@@ -98,10 +113,22 @@ export default function ProductCandidatesPage() {
           <ArrowLeft className="w-4 h-4" />
           대시보드
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">상품 후보 검토</h1>
-        <p className="text-gray-500 mt-1">
-          스나이퍼 스코어 기준으로 정렬된 후보 상품을 검토하고 승인 또는 거절합니다
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">상품 후보 검토</h1>
+            <p className="text-gray-500 mt-1">
+              스나이퍼 스코어 기준으로 정렬된 후보 상품을 검토하고 승인 또는 거절합니다
+            </p>
+          </div>
+          <button
+            onClick={fetchCandidates}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </button>
+        </div>
       </div>
 
       {/* 요약 카드 */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Calculator, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Wifi } from 'lucide-react'
+import { Calculator, RefreshCw, TrendingUp, AlertCircle, CheckCircle, Wifi, ClipboardList } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -93,6 +93,8 @@ export default function MarginsPage() {
   const [calculated, setCalculated] = useState(false)
   const [liveRate, setLiveRate] = useState<{ rate: number; updatedAt: string | null } | null>(null)
   const [category, setCategory] = useState('health')
+  const [taskCreating, setTaskCreating] = useState(false)
+  const [taskCreated, setTaskCreated] = useState(false)
 
   useEffect(() => {
     fetch('/api/exchange-rate')
@@ -132,6 +134,38 @@ export default function MarginsPage() {
     setInput(defaultInput)
     setSniperInput(defaultSniperInput)
     setCalculated(false)
+    setTaskCreated(false)
+  }
+
+  const handleCreatePriceTask = async () => {
+    setTaskCreating(true)
+    try {
+      const priority = marginResult.marginRate < 10 ? 'critical' : marginResult.marginRate < 15 ? 'high' : 'medium'
+      await fetch('/api/agent-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentType: 'margin_pricing',
+          actionType: 'update_price',
+          title: `가격 검토 — 마진 ${marginResult.marginRate.toFixed(1)}% (${category})`,
+          recommendation: `총원가 ${marginResult.totalCost.toLocaleString()}원 / 판매가 ${input.domesticExpectedPrice.toLocaleString()}원 / 순마진 ${marginResult.expectedMargin.toLocaleString()}원. 가격 조정 또는 원가 절감 검토 필요.`,
+          priority,
+          payload: {
+            marginRate: marginResult.marginRate,
+            expectedMargin: marginResult.expectedMargin,
+            totalCost: marginResult.totalCost,
+            domesticExpectedPrice: input.domesticExpectedPrice,
+            category,
+            exchangeRate: input.exchangeRate,
+          },
+        }),
+      })
+      setTaskCreated(true)
+    } catch {
+      // silent
+    } finally {
+      setTaskCreating(false)
+    }
   }
 
   const isInputFilled = input.overseasPrice > 0 && input.domesticExpectedPrice > 0
@@ -463,6 +497,25 @@ export default function MarginsPage() {
                         마진율 {marginResult.marginRate.toFixed(1)}%
                       </p>
                     </div>
+
+                    {/* Phase 3: 가격 검토 태스크 생성 */}
+                    {taskCreated ? (
+                      <div className="flex items-center gap-2 p-2.5 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                        <CheckCircle className="w-4 h-4 shrink-0" />
+                        가격 검토 태스크가 Agent Command에 등록됐습니다.
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        disabled={taskCreating}
+                        onClick={handleCreatePriceTask}
+                      >
+                        <ClipboardList className="w-3.5 h-3.5 mr-1.5" />
+                        {taskCreating ? '등록 중...' : '가격 검토 태스크 생성'}
+                      </Button>
+                    )}
                   </>
                 )}
               </CardContent>
