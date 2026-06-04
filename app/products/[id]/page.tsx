@@ -388,8 +388,11 @@ export default function ProductDetailPage() {
                     tickLine={false}
                   />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
-                  <Bar dataKey="max" fill="#ffffff08" radius={[0, 3, 3, 0]} isAnimationActive={false} />
-                  <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 3, 3, 0]}
+                    background={{ fill: '#ffffff08', radius: [0, 3, 3, 0] }}
+                  >
                     {scoreIndicators.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getBarColor(entry.value, entry.max)} />
                     ))}
