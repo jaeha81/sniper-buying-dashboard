@@ -391,7 +391,7 @@ export default function ProductDetailPage() {
                   <Bar
                     dataKey="value"
                     radius={[0, 3, 3, 0]}
-                    background={{ fill: '#ffffff08', radius: [0, 3, 3, 0] }}
+                    background={{ fill: '#ffffff08', rx: 3, ry: 3 }}
                   >
                     {scoreIndicators.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={getBarColor(entry.value, entry.max)} />
