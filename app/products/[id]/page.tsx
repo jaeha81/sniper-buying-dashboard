@@ -18,11 +18,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { getProductById } from '@/data/sample-products'
 import { useCart } from '@/lib/cart-context'
 import { formatKRW, getCategoryLabel, getRiskLevelLabel, getStatusLabel } from '@/lib/utils'
 import { getSniperGrade } from '@/lib/calculator'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import type { Product } from '@/lib/types'
 import {
   BarChart,
   Bar,
@@ -88,8 +88,26 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { addItem } = useCart()
   const [added, setAdded] = useState(false)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const product = getProductById(id)
+  useEffect(() => {
+    fetch(`/api/products/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.product) setProduct(data.product)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <div className="w-10 h-10 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
+      </div>
+    )
+  }
 
   if (!product) {
     return (
@@ -189,8 +207,16 @@ export default function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 왼쪽: 이미지 + 스코어 */}
         <div className="space-y-4">
-          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl h-64 flex items-center justify-center">
-            <Package className="w-24 h-24 text-gray-400" />
+          <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl h-64 flex items-center justify-center overflow-hidden">
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-contain p-4"
+              />
+            ) : (
+              <Package className="w-24 h-24 text-gray-400" />
+            )}
           </div>
 
           <Card>
