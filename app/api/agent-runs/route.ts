@@ -5,6 +5,10 @@ import { buildAgentAutomationPlan, type AgentAutomationTrigger } from '@/lib/age
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmin } from '@/lib/notify'
+import { decideTaskAutonomy } from '@/lib/autonomy'
+import { loadAutonomyPolicy, countAutoActionsLast24h } from '@/lib/autonomy-store'
+import { executeAgentTask, markTaskExecuted, type AgentTaskRow } from '@/lib/agent-executor'
+import type { AgentActionType, AgentTaskPriority } from '@/lib/agents'
 
 type ProductRow = {
   id: string
@@ -15,6 +19,8 @@ type ProductRow = {
   sniper_score: number
   risk_level: 'LOW' | 'MEDIUM' | 'HIGH'
   automation_score: number
+  total_cost: number | string | null
+  domestic_expected_price: number | string | null
   created_at: string | null
 }
 
@@ -85,7 +91,7 @@ export async function POST(request: Request) {
     const [productsResult, ordersResult, logsResult, tasksResult, findingsResult] = await Promise.all([
       supabase
         .from('products')
-        .select('id, name, category, status, margin_rate, sniper_score, risk_level, automation_score, created_at')
+        .select('id, name, category, status, margin_rate, sniper_score, risk_level, automation_score, total_cost, domestic_expected_price, created_at')
         .in('status', ['candidate', 'active', 'paused'])
         .limit(500),
       supabase
@@ -127,6 +133,8 @@ export async function POST(request: Request) {
         sniperScore: Number(product.sniper_score),
         riskLevel: product.risk_level,
         automationScore: Number(product.automation_score),
+        totalCost: product.total_cost === null ? null : Number(product.total_cost),
+        domesticExpectedPrice: product.domestic_expected_price === null ? null : Number(product.domestic_expected_price),
         createdAt: product.created_at,
       })),
       orders: ((ordersResult.data ?? []) as OrderRow[]).map((order) => ({
@@ -186,8 +194,9 @@ export async function POST(request: Request) {
     const { error: runError } = await supabase.from('agent_runs').insert(runRows)
     if (runError) throw runError
 
+    let insertedTaskRows: Array<AgentTaskRow & { status: string }> = []
     if (newTasks.length > 0) {
-      const { error } = await supabase.from('agent_tasks').insert(newTasks.map((task) => ({
+      const { data, error } = await supabase.from('agent_tasks').insert(newTasks.map((task) => ({
         agent_type: task.agentType,
         action_type: task.actionType,
         status: 'pending',
@@ -198,8 +207,9 @@ export async function POST(request: Request) {
         target_id: task.targetId,
         requires_approval: task.requiresApproval,
         payload: task.payload,
-      })))
+      }))).select('id, agent_type, action_type, priority, title, target_type, target_id, payload, status')
       if (error) throw error
+      insertedTaskRows = (data ?? []) as Array<AgentTaskRow & { status: string }>
     }
 
     if (newFindings.length > 0) {
@@ -216,6 +226,39 @@ export async function POST(request: Request) {
       if (error) throw error
     }
 
+    // ── 자율 실행 패스 ─────────────────────────────────────────
+    // 정책(레벨/가드레일/킬스위치)에 따라 새 태스크를 즉시 실행하거나 승인 대기로 남긴다.
+    const { policy, source: policySource } = await loadAutonomyPolicy(supabase)
+    let autoActionsLast24h = await countAutoActionsLast24h(supabase)
+    const autoExecuted: Array<{ id: string; title: string; ok: boolean; reason: string }> = []
+    let heldForApproval = 0
+
+    for (const row of insertedTaskRows) {
+      const decision = decideTaskAutonomy(
+        {
+          actionType: row.action_type as AgentActionType,
+          priority: row.priority as AgentTaskPriority,
+          payload: row.payload,
+        },
+        policy,
+        { autoActionsLast24h }
+      )
+
+      if (decision.mode === 'auto_execute') {
+        const result = await executeAgentTask(supabase, row)
+        await markTaskExecuted(supabase, row.id, 'autonomy', result, decision.reason)
+        autoActionsLast24h += 1
+        autoExecuted.push({ id: row.id, title: row.title, ok: result.ok, reason: decision.reason })
+      } else {
+        heldForApproval += 1
+        // 보류 사유 기록 — 감사 컬럼 미적용(마이그레이션 전)이면 에러가 반환되지만 스캔은 계속
+        await supabase
+          .from('agent_tasks')
+          .update({ decision_reason: decision.reason })
+          .eq('id', row.id)
+      }
+    }
+
     await supabase.from('automation_logs').insert({
       scenario_name: 'agent_operating_system_scan',
       trigger_type: triggerType,
@@ -227,6 +270,9 @@ export async function POST(request: Request) {
         plannedFindings: plan.findings.length,
         insertedTasks: newTasks.length,
         insertedFindings: newFindings.length,
+        autonomyLevel: policy.autonomyLevel,
+        autoExecuted: autoExecuted.length,
+        heldForApproval,
       },
       started_at: nowIso,
       completed_at: new Date().toISOString(),
@@ -251,6 +297,19 @@ export async function POST(request: Request) {
       ).catch(() => {})
     }
 
+    // 자율 실행 결과 알림 (성공/실패 요약)
+    if (autoExecuted.length > 0) {
+      const failed = autoExecuted.filter((item) => !item.ok)
+      const lines = autoExecuted
+        .map((item) => `${item.ok ? '✅' : '❌'} ${item.title} — ${item.reason}`)
+        .join('\n')
+      notifyAdmin(
+        `🤖 자율 실행 ${autoExecuted.length}건 (실패 ${failed.length}건)\n${lines}`,
+        failed.length > 0 ? 'warning' : 'info',
+        { autonomyLevel: policy.autonomyLevel, last24h: autoActionsLast24h }
+      ).catch(() => {})
+    }
+
     return NextResponse.json({
       triggerType,
       runs: plan.runs,
@@ -258,6 +317,15 @@ export async function POST(request: Request) {
       plannedFindings: plan.findings.length,
       insertedTasks: newTasks.length,
       insertedFindings: newFindings.length,
+      autonomy: {
+        level: policy.autonomyLevel,
+        killSwitch: policy.killSwitch,
+        policySource,
+        autoExecuted: autoExecuted.length,
+        autoFailed: autoExecuted.filter((item) => !item.ok).length,
+        heldForApproval,
+        autoActionsLast24h,
+      },
     })
   } catch (err) {
     console.error('[POST /api/agent-runs]', err)
