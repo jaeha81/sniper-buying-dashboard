@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { notifyAdmin } from '@/lib/notify'
 import { RISKY_AGENT_ACTIONS } from '@/lib/agents'
+import { executeAgentTask, markTaskExecuted } from '@/lib/agent-executor'
 
 type TaskMutationAction = 'approve' | 'reject' | 'complete' | 'fail' | 'cancel'
 
@@ -16,30 +17,6 @@ const ACTION_TO_STATUS: Record<TaskMutationAction, string> = {
 }
 
 const RISKY_SET = new Set(RISKY_AGENT_ACTIONS)
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function executeApprovedAction(supabase: ReturnType<typeof createServiceClient>, task: Record<string, any>) {
-  const { action_type, target_type, target_id, payload } = task
-  if (!target_id) return
-
-  if (action_type === 'approve_product' && target_type === 'product') {
-    await supabase!.from('products').update({ status: 'active' }).eq('id', target_id)
-  } else if (action_type === 'pause_product' && target_type === 'product') {
-    await supabase!.from('products').update({ status: 'paused' }).eq('id', target_id)
-  } else if (action_type === 'update_price' && target_type === 'product' && payload) {
-    const updates: Record<string, unknown> = {}
-    if (payload.domesticExpectedPrice !== undefined) updates.domestic_expected_price = payload.domesticExpectedPrice
-    if (payload.overseasPrice !== undefined) updates.overseas_price = payload.overseasPrice
-    if (payload.totalCost !== undefined) updates.total_cost = payload.totalCost
-    if (payload.expectedMargin !== undefined) updates.expected_margin = payload.expectedMargin
-    if (payload.marginRate !== undefined) updates.margin_rate = payload.marginRate
-    if (Object.keys(updates).length > 0) {
-      await supabase!.from('products').update(updates).eq('id', target_id)
-    }
-  } else if (action_type === 'update_order_status' && target_type === 'order' && payload?.status) {
-    await supabase!.from('orders').update({ status: payload.status }).eq('id', target_id)
-  }
-}
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -85,20 +62,20 @@ export async function PUT(
     return NextResponse.json({ error: 'Failed to update agent task.' }, { status: 500 })
   }
 
-  // approve 시 action_type에 따라 DB 실제 실행
+  // approve 시 공용 실행기로 실제 DB 반영 + 실행 감사 기록
+  let executionResult = null
   if (body.action === 'approve') {
-    await executeApprovedAction(supabase, data).catch((err) => {
-      console.error(`[approve execution] task=${id}`, err)
-    })
+    executionResult = await executeAgentTask(supabase, data)
+    await markTaskExecuted(supabase, id, 'admin', executionResult, '관리자 승인')
 
     if (RISKY_SET.has(data.action_type)) {
       notifyAdmin(
-        `⚡ 위험 액션 승인됨: ${data.title}`,
-        'warning',
+        `⚡ 위험 액션 승인됨: ${data.title}${executionResult.ok ? '' : ` (실행 실패: ${executionResult.error})`}`,
+        executionResult.ok ? 'warning' : 'critical',
         { actionType: data.action_type, agentType: data.agent_type, priority: data.priority }
       ).catch(() => {})
     }
   }
 
-  return NextResponse.json({ task: data })
+  return NextResponse.json({ task: data, executionResult })
 }

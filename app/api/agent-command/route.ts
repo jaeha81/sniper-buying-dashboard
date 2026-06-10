@@ -125,8 +125,31 @@ export async function GET() {
 
     return NextResponse.json({
       agents,
-      pendingTasks,
-      criticalFindings,
+      // UI 타입(AgentTask/AgentFinding)에 맞춰 camelCase로 매핑
+      pendingTasks: pendingTasks.map((task) => ({
+        id: task.id,
+        agentType: task.agent_type,
+        actionType: task.action_type,
+        status: task.status,
+        priority: task.priority,
+        title: task.title,
+        recommendation: task.recommendation,
+        targetType: task.target_type,
+        targetId: task.target_id,
+        requiresApproval: task.requires_approval,
+        createdAt: task.created_at,
+      })),
+      criticalFindings: criticalFindings.map((finding) => ({
+        id: finding.id,
+        agentType: finding.agent_type,
+        severity: finding.severity,
+        title: finding.title,
+        summary: finding.summary,
+        targetType: finding.target_type,
+        targetId: finding.target_id,
+        confidence: finding.confidence,
+        createdAt: finding.created_at,
+      })),
       failedAutomationLogs: logsResult.data ?? [],
       lowMarginProducts: productsResult.data ?? [],
       delayedOrders: ordersResult.data ?? [],

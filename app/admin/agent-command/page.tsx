@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AutonomyPanel } from '@/components/admin/autonomy-panel'
 import { AGENT_TYPE_LABELS, AGENT_TYPE_DESCRIPTIONS } from '@/lib/agents'
 import type { AgentType, AgentTask, AgentFinding, AgentTaskStatus } from '@/lib/types'
 
@@ -341,6 +342,9 @@ export default function AgentCommandPage() {
           {error}
         </div>
       )}
+
+      {/* 자율 운영 엔진 제어판 */}
+      <AutonomyPanel />
 
       {/* Agent Status Cards */}
       {loading ? (

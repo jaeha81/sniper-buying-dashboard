@@ -19,6 +19,8 @@ export interface ProductAutomationSnapshot {
   sniperScore: number
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
   automationScore: number
+  totalCost?: number | null
+  domesticExpectedPrice?: number | null
   createdAt?: string | null
 }
 
@@ -94,6 +96,31 @@ const HIGH_VALUE_CANDIDATE_SCORE = 70
 const LOW_MARGIN_RATE = 15
 const CRITICAL_MARGIN_RATE = 10
 const DELAYED_ORDER_HOURS = 24
+const TARGET_MARGIN_RATE = 20
+
+/**
+ * 저마진 상품의 목표 마진율(20%) 복원 제안가를 계산한다.
+ * marginRate = (price - totalCost) / price 이므로 price = totalCost / (1 - target).
+ * 자율 실행 엔진은 proposedChangePct가 가격 변동 한도 내일 때만 자동 적용한다.
+ */
+function buildRepricingProposal(product: ProductAutomationSnapshot): Record<string, number> | null {
+  const totalCost = product.totalCost ?? 0
+  const currentPrice = product.domesticExpectedPrice ?? 0
+  if (totalCost <= 0 || currentPrice <= 0) return null
+
+  const rawPrice = totalCost / (1 - TARGET_MARGIN_RATE / 100)
+  const proposedPrice = Math.ceil(rawPrice / 100) * 100
+  if (proposedPrice <= 0 || proposedPrice === currentPrice) return null
+
+  const expectedMargin = proposedPrice - totalCost
+  return {
+    domesticExpectedPrice: proposedPrice,
+    expectedMargin,
+    marginRate: (expectedMargin / proposedPrice) * 100,
+    currentPrice,
+    proposedChangePct: ((proposedPrice - currentPrice) / currentPrice) * 100,
+  }
+}
 
 function hoursBetween(nowIso: string, thenIso: string): number {
   const deltaMs = Date.parse(nowIso) - Date.parse(thenIso)
@@ -148,6 +175,7 @@ export function buildAgentAutomationPlan(input: AgentAutomationInput): AgentAuto
         confidence: product.marginRate < CRITICAL_MARGIN_RATE ? 0.9 : 0.75,
         payload: { triggerType: input.triggerType, marginRate: product.marginRate },
       })
+      const repricing = product.marginRate < CRITICAL_MARGIN_RATE ? null : buildRepricingProposal(product)
       tasks.push(task({
         agentType: 'margin_pricing',
         actionType: product.marginRate < CRITICAL_MARGIN_RATE ? 'pause_product' : 'update_price',
@@ -157,8 +185,10 @@ export function buildAgentAutomationPlan(input: AgentAutomationInput): AgentAuto
         targetId: product.id,
         recommendation: product.marginRate < CRITICAL_MARGIN_RATE
           ? 'Pause or reprice before accepting new orders.'
-          : 'Review landed cost and update selling price.',
-        payload: { triggerType: input.triggerType, marginRate: product.marginRate },
+          : repricing
+            ? `Reprice to ${repricing.domesticExpectedPrice.toLocaleString()} KRW to restore ${TARGET_MARGIN_RATE}% margin (${repricing.proposedChangePct >= 0 ? '+' : ''}${repricing.proposedChangePct.toFixed(1)}%).`
+            : 'Review landed cost and update selling price.',
+        payload: { triggerType: input.triggerType, marginRate: product.marginRate, ...(repricing ?? {}) },
       }))
     }
 
