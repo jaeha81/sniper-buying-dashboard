@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate:automation": "npx --yes esbuild scripts/validate-automation.ts --bundle --platform=node --format=cjs | node -"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.0.5",
