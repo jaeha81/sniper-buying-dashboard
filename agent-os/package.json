@@ -1,0 +1,21 @@
+{
+  "name": "sniper-agent-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "오라클 클라우드 상주 독립 에이전트 OS — Sniper 구매대행 완전자율 운영 데몬",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "config:print": "tsx scripts/print-config.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}
