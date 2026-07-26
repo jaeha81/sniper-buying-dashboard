@@ -317,14 +317,31 @@
 
 ### P1 — Bucky와 직원 운영
 
-12. `employees`/`employee_tools`/`prompt_versions` + 직원 11종 레지스트리·상태판
-13. Bucky 오케스트레이션 (§4 판정 JSON 스키마)
-14. URL 1건 → 후보 → 판정 → 승인 대기 E2E
-15. Make.com 서명 웹훅 (S7) + `/app/automations`
-16. 재시도·백오프·circuit breaker·dead-letter·전역 Emergency Stop
-17. `/api/health`, Preview 차단 (S10)
+| # | 항목 | 상태 |
+|---|---|---|
+| 12 | `employees`/`employee_tools`/`prompt_versions` + 직원 11종 | ✅ 완료 |
+| 13 | Bucky 오케스트레이션 (§4 판정 JSON) | ✅ 완료 |
+| 14 | URL 1건 → 후보 → 판정 → 승인 대기 E2E | ✅ 완료 |
+| 15 | Make.com 서명 웹훅 (S7) | ✅ 완료 |
+| 16 | 재시도·백오프·dead-letter·전역 Emergency Stop | ✅ 완료 |
+| 17 | `/api/health`, Preview 차단 (S10) | ✅ 완료 |
+| + | 직원 현황판 API | ✅ 완료 (`GET /api/employees`) |
+| + | 승인함 API | ✅ 완료 (`GET /api/approvals`, `POST /api/approvals/[id]`) |
+| + | 지휘실·직원판 **화면** | ⬜ P2와 함께 |
 
-**완료 기준**: URL 하나로 파이프라인 전 구간 실행·기록 · 모든 분석에 근거/신뢰도/버전 기록 · Make 중단·중복·timeout 안전 처리
+**P1에서 실제로 바뀐 것**
+
+- **직원 11종** (`lib/employees.ts`, `010_employees.sql`) — 도구 목록이 곧 권한이다. 콘텐츠 담당은 `channel.publish`를 못 쓰고, CS 담당은 `db.order.write`가 없고, 수익 담당은 읽기 전용이다. 고객 알림 권한은 CS 담당만 갖는다. Task 종류가 직원 간 중복되지 않음을 테스트로 강제해 배정이 불확정해지는 걸 막았다.
+- **Bucky 판정** (`lib/bucky.ts`) — 지시서 §4 JSON 스키마 그대로. 판정 우선순위는 비상정지 > 예산초과 > 하드블록 > 직원 막힘/상충 > 점수다. 상충 검출은 숫자 상대오차 10%까지 같은 값으로 봐서 노이즈를 걸러낸다. 신뢰도는 스코어와 직원 중 **낮은 쪽**을 따른다.
+- **E2E 파이프라인** (`lib/orchestrator.ts`, `POST /api/pipeline/run`) — URL 하나로 안전게이트 → 스크랩 → 추출 → 마진 v2 → Score 2.0 → 직원 산출물 → Bucky 판정 → 저장 → 승인 요청까지 실행되고 전 구간이 기록된다.
+  - **중요**: 신규 후보는 `regulatoryCleared: false`, `ipCleared: false`로 넘어간다. 실제 규제·IP 검토를 하지 않았으니 사실대로 적은 것이고, 그 결과 **어떤 신규 후보도 자동으로 등록 경로에 오르지 못한다.** 테스트로 고정했다.
+  - 근거(evidence)는 LLM 추정은 `inferred`, 우리 가정은 `manual`로 표시한다. 전부 `measured`로 적으면 신뢰도 1이 되어 하드블록을 우회한다.
+- **승인 게이트** (`POST /api/approvals/[id]`) — 승인은 owner만. 비가역 승인은 안전 게이트를 먼저 확인해 비상정지 중 등록 승인이 통과하지 못하게 한다. 승인하면 Task를 큐로 되돌리고, 반려하면 Task를 취소한다. 이 라우트가 외부 채널을 직접 호출하지는 않는다.
+- **서명 웹훅** (`POST /api/webhooks/make/[scenario]`) — HMAC + timestamp(±5분) + DB 기반 nonce. 중복 콜백은 200으로 받아 넘긴다(401을 주면 Make가 무한 재시도한다). `listing_publish`·`notify`·`daily_report`는 Make가 Task를 만들 수 없다 — 등록은 승인 게이트를 거쳐야 하므로.
+- **안전 게이트** (`lib/safety-gate.ts`, `GET/PUT /api/safety`) — 부작용 채널 7종, 전역 Emergency Stop, 채널별 Kill Switch, 일일 비용 한도. Preview·개발 환경에서는 `external_fetch`만 허용한다. 정책을 읽지 못하면 **fail-closed**로 전부 차단한다(`lib/safety-store.ts`) — 정책을 모르는 상태에서 통과시키면 킬스위치가 무력해진다.
+- **직원 현황판** (`GET /api/employees`) — 부하를 `tasks`에서 실시간 집계한다. 정적 카드가 아니다(지시서 §19 금지 조항). 성과 이력이 없으면 성공률을 `null`로 보낸다.
+
+**완료 기준 대비 현황**: URL 하나로 전 구간 실행·기록 ✅ · 모든 분석에 근거/신뢰도/버전 기록 ✅ · Make 중복·서명·timeout 안전 처리 ✅ · 승인 전 외부 등록 미실행 ✅ (테스트로 고정) · 지휘실 **화면** ⬜
 
 ### P2 — 외부 등록·주문·수익 연결
 

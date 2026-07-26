@@ -28,6 +28,9 @@ const AUTOMATION_PREFIXES = [
   '/api/agent-runs',
   '/api/automation-logs',
   '/api/discover/process',
+  // 서명 웹훅. 쿠키가 없으므로 통과시키고, HMAC 서명·timestamp·nonce
+  // 검증은 라우트가 lib/webhook-auth.ts로 수행한다.
+  '/api/webhooks/make',
 ]
 
 /**
