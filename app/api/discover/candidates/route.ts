@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 

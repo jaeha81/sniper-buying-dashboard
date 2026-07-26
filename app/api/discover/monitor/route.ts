@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
-import { cookies } from 'next/headers'
 import { runMarginMonitor } from '@/lib/margin-monitor'
 
 async function isAuthorized(request: Request) {
   if (hasValidAutomationSecret(request)) return true
-  const cookieStore = await cookies()
-  return isAdminAuthenticated(cookieStore)
+  return isAdminAuthenticated()
 }
 
 export async function POST(request: Request) {

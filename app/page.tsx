@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Crosshair,
@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProductCard } from '@/components/product-card'
-import { getTopProductsByScore } from '@/data/sample-products'
+import type { Product } from '@/lib/types'
 import { StatsCounter } from '@/components/stats-counter'
 
 const HeroSpline = dynamic(() => import('@/components/hero-spline'), { ssr: false })
@@ -87,7 +87,22 @@ function heroFade(delay = 0) {
 }
 
 export default function HomePage() {
-  const topProducts = getTopProductsByScore(6)
+  // 지시서 §2·§19: 하드코딩 샘플 상품을 실적처럼 보여주지 않는다.
+  // 예전에는 getTopProductsByScore(6)이 data/sample-products.ts에서
+  // 상위 6개를 뽑아 왔다. 이제 실 DB에서 가져오고, 없으면 섹션을 비운다.
+  const [topProducts, setTopProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const products: Product[] = data?.products ?? []
+        setTopProducts(
+          [...products].sort((a, b) => b.sniperScore - a.sniperScore).slice(0, 6)
+        )
+      })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="bg-luxury-bg">
@@ -436,11 +451,17 @@ export default function HomePage() {
             </Link>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {topProducts.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} />
-            ))}
-          </div>
+          {topProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {topProducts.map((product, i) => (
+                <ProductCard key={product.id} product={product} index={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              아직 등재된 상품이 없습니다.
+            </div>
+          )}
         </div>
       </section>
 

@@ -13,7 +13,7 @@ interface CustomerRow {
 
 export async function GET() {
   const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: 'Admin authentication is required.' }, { status: 401 })
   }
 

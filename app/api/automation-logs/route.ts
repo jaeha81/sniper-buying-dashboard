@@ -1,5 +1,4 @@
 ﻿import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
@@ -22,8 +21,7 @@ type AutomationLogBody = {
 }
 
 export async function GET() {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: 'Admin authentication is required.' }, { status: 401 })
   }
 

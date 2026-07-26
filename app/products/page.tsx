@@ -6,7 +6,6 @@ import { Search, SlidersHorizontal, ChevronDown, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ProductCard } from '@/components/product-card'
-import { sampleProducts } from '@/data/sample-products'  // Phase 4: SSR 초기값 fallback
 import { getCategoryLabel } from '@/lib/utils'
 import type { Product } from '@/lib/types'
 
@@ -52,7 +51,9 @@ const SCORE_OPTIONS: { value: MinScore; label: string }[] = [
 ]
 
 export default function ProductsPage() {
-  const [allProducts, setAllProducts] = useState<Product[]>(sampleProducts)
+  // 지시서 §2·§19: 하드코딩 샘플로 목록을 채우지 않는다. 실 DB 응답만 쓴다.
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all')
   const [selectedSort, setSelectedSort] = useState<SortKey>('sniperScore')
@@ -61,12 +62,13 @@ export default function ProductsPage() {
   const [minScore, setMinScore] = useState<MinScore>(0)
   const [filterOpen, setFilterOpen] = useState(false)
 
-  // Phase 4: 마운트 후 Supabase products로 갱신
+  // 마운트 후 Supabase products로 채운다.
   useEffect(() => {
     fetch('/api/products')
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data?.products?.length) setAllProducts(data.products) })
+      .then((data) => { if (data?.products) setAllProducts(data.products) })
       .catch(() => {})
+      .finally(() => setLoaded(true))
   }, [])
 
   const activeFilterCount = [
@@ -291,11 +293,25 @@ export default function ProductsPage() {
         </div>
 
         {/* Product grid */}
-        {filteredProducts.length > 0 ? (
+        {!loaded ? (
+          <div className="text-center py-24 text-muted-foreground text-sm">
+            상품을 불러오는 중...
+          </div>
+        ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
             {filteredProducts.map((product, i) => (
               <ProductCard key={product.id} product={product} index={i} />
             ))}
+          </div>
+        ) : allProducts.length === 0 ? (
+          // 필터 때문이 아니라 등록된 상품 자체가 없는 경우.
+          // 예전에는 이 자리를 샘플 상품 30개가 채우고 있었다.
+          <div className="text-center py-24 text-muted-foreground">
+            <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <p className="text-lg font-medium text-foreground">등록된 상품이 없습니다</p>
+            <p className="text-sm mt-1">
+              상품 발굴을 실행하면 검증된 상품이 이곳에 표시됩니다.
+            </p>
           </div>
         ) : (
           <div className="text-center py-24 text-muted-foreground">
