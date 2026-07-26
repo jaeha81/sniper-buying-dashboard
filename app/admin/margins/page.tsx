@@ -91,7 +91,13 @@ export default function MarginsPage() {
   const [input, setInput] = useState<MarginInput>(defaultInput)
   const [sniperInput, setSniperInput] = useState<SniperInput>(defaultSniperInput)
   const [calculated, setCalculated] = useState(false)
-  const [liveRate, setLiveRate] = useState<{ rate: number; updatedAt: string | null } | null>(null)
+  // dataQuality: REAL = 외부 API 실측 / ESTIMATE = 폴백 상수 (지시서 §6)
+  const [liveRate, setLiveRate] = useState<{
+    rate: number
+    updatedAt: string | null
+    dataQuality?: 'REAL' | 'ESTIMATE'
+    capturedAt?: string
+  } | null>(null)
   const [category, setCategory] = useState('health')
   const [taskCreating, setTaskCreating] = useState(false)
   const [taskCreated, setTaskCreated] = useState(false)
@@ -179,12 +185,32 @@ export default function MarginsPage() {
           <p className="text-gray-500 mt-1">해외 구매대행 마진과 스나이퍼 스코어를 실시간으로 계산합니다</p>
         </div>
         <div className="flex items-center gap-3">
-          {liveRate && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 border border-emerald-400/20 bg-emerald-400/5 px-3 py-1.5 rounded-full">
-              <Wifi className="w-3 h-3" />
-              실시간 환율 1 USD = {liveRate.rate.toLocaleString()} KRW
-            </div>
-          )}
+          {liveRate &&
+            (liveRate.dataQuality === 'ESTIMATE' ? (
+              // 외부 API가 죽어 상수를 쓰고 있다는 사실을 숨기지 않는다.
+              // 이 값으로 계산한 마진은 실제와 어긋날 수 있다.
+              <div
+                className="flex items-center gap-1.5 text-xs text-amber-400 border border-amber-400/20 bg-amber-400/5 px-3 py-1.5 rounded-full"
+                title={`환율 API를 불러오지 못해 기본값을 사용 중입니다${
+                  liveRate.capturedAt ? ` (확인: ${new Date(liveRate.capturedAt).toLocaleString('ko-KR')})` : ''
+                }`}
+              >
+                <Wifi className="w-3 h-3" />
+                ESTIMATE · 환율 기본값 1 USD = {liveRate.rate.toLocaleString()} KRW
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-1.5 text-xs text-emerald-400 border border-emerald-400/20 bg-emerald-400/5 px-3 py-1.5 rounded-full"
+                title={
+                  liveRate.capturedAt
+                    ? `수집: ${new Date(liveRate.capturedAt).toLocaleString('ko-KR')}`
+                    : undefined
+                }
+              >
+                <Wifi className="w-3 h-3" />
+                REAL · 실시간 환율 1 USD = {liveRate.rate.toLocaleString()} KRW
+              </div>
+            ))}
           <Button variant="outline" size="sm" onClick={resetAll}>
             <RefreshCw className="w-4 h-4 mr-1" />
             초기화
