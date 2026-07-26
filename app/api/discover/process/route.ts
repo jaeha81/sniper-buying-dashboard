@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
-import { cookies } from 'next/headers'
 import { discoverUrl, type DiscoverySite } from '@/lib/discovery-pipeline'
 import { notifyAdmin } from '@/lib/notify'
 
 async function isAuthorized(request: Request) {
   if (hasValidAutomationSecret(request)) return true
-  const cookieStore = await cookies()
-  return isAdminAuthenticated(cookieStore)
+  return isAdminAuthenticated()
 }
 
 export async function POST(request: Request) {

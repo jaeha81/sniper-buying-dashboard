@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { buildAgentAutomationPlan, type AgentAutomationTrigger } from '@/lib/agent-automation'
 import { hasValidAutomationSecret } from '@/lib/automation-auth'
@@ -61,8 +60,7 @@ function keyOf(parts: Array<string | null | undefined>) {
 
 async function isAuthorized(request: Request) {
   if (hasValidAutomationSecret(request)) return true
-  const cookieStore = await cookies()
-  return isAdminAuthenticated(cookieStore)
+  return isAdminAuthenticated()
 }
 
 export async function POST(request: Request) {

@@ -136,14 +136,14 @@ function CheckoutContent() {
     setPaymentError('')
 
     try {
-      // 1. Create pending order
-      const orderId = `SB-${Date.now()}`
+      // 1. 주문 생성 — 금액과 주문번호는 서버가 정한다.
+      //
+      // 이전에는 이 화면이 unitPrice/totalPrice와 `SB-${Date.now()}` 주문번호를
+      // 직접 만들어 보냈다. 요청을 조작하면 임의 금액으로 주문이 만들어졌고,
+      // 실패해도 그냥 결제로 넘어갔다. 이제 상품 ID와 수량만 보내고, 서버가
+      // 계산해 돌려준 금액으로만 결제창을 띄운다.
       const orderPayload = {
-        productId: items[0]?.product.id ?? 'multi',
-        productName: items.map((i) => i.product.name).join(', ').slice(0, 100),
-        quantity: items.reduce((s, i) => s + i.quantity, 0),
-        unitPrice: totalPrice,
-        totalPrice: total,
+        items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
         customerName: form.name,
         customerEmail: form.email,
         customsId: form.customsId,
@@ -152,15 +152,23 @@ function CheckoutContent() {
         requests: form.requests,
       }
 
-      // Best-effort order creation (Supabase may not be configured)
-      try {
-        await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...orderPayload, orderRef: orderId }),
-        })
-      } catch {
-        // Non-fatal — proceed with payment
+      const orderRes = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      })
+
+      const orderData = await orderRes.json().catch(() => null)
+
+      if (!orderRes.ok) {
+        throw new Error(orderData?.error ?? '주문 생성에 실패했습니다.')
+      }
+
+      const orderId: string | undefined = orderData?.orderRef
+      const serverAmount: number | undefined = orderData?.totalAmount
+
+      if (!orderId || typeof serverAmount !== 'number') {
+        throw new Error('주문 정보를 확인할 수 없어 결제를 진행할 수 없습니다.')
       }
 
       // 2. Trigger Toss Payments
@@ -179,7 +187,8 @@ function CheckoutContent() {
       }
 
       await toss.requestPayment(methodMap[form.paymentMethod], {
-        amount: total,
+        // 화면에서 계산한 total이 아니라 서버가 확정한 금액을 넘긴다.
+        amount: serverAmount,
         orderId,
         orderName: items.map((i) => i.product.name).join(', ').slice(0, 100),
         customerName: form.name,

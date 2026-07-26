@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { sampleProducts } from '@/data/sample-products'
 
 interface StatItem {
   value: string
@@ -10,12 +9,23 @@ interface StatItem {
 
 function buildItems(totalProducts: number, avgMarginRate: number): StatItem[] {
   return [
-    { value: `${totalProducts}+`, label: '검증 상품' },
+    { value: `${totalProducts}`, label: '검증 상품' },
     { value: `${avgMarginRate}%`, label: '평균 마진율' },
+    // 아래 둘은 상품 데이터가 아니라 스코어 규칙 자체에서 온 상수다.
     { value: '8개', label: '스코어 지표' },
     { value: '60+', label: '통과 기준점' },
   ]
 }
+
+// 지시서 §2·§19: 실데이터가 없으면 0 또는 '데이터 없음'으로 표시한다.
+// 이전에는 하드코딩된 샘플 상품 30개로 상품 수와 평균 마진율을 계산해
+// 실적처럼 보여줬다.
+const EMPTY_ITEMS: StatItem[] = [
+  { value: '—', label: '검증 상품' },
+  { value: '—', label: '평균 마진율' },
+  { value: '8개', label: '스코어 지표' },
+  { value: '60+', label: '통과 기준점' },
+]
 
 function StatItems({ items }: { items: StatItem[] }) {
   return (
@@ -32,19 +42,9 @@ function StatItems({ items }: { items: StatItem[] }) {
   )
 }
 
-// Static fallback (sampleProducts 기반 — 빌드/SSR 안전)
-function staticItems(): StatItem[] {
-  const count = sampleProducts.length
-  const avgMargin =
-    count > 0
-      ? Math.round(sampleProducts.reduce((sum, p) => sum + p.marginRate, 0) / count)
-      : 28
-  return buildItems(count, avgMargin)
-}
-
-// Phase 3: 실시간 통계 Client Component — 마운트 후 /api/products로 갱신
+// 실 DB 집계만 표시한다. 조회 전·실패·0건은 전부 '—'로 둔다.
 export function StatsCounter() {
-  const [items, setItems] = useState<StatItem[]>(staticItems)
+  const [items, setItems] = useState<StatItem[]>(EMPTY_ITEMS)
 
   useEffect(() => {
     fetch('/api/products')

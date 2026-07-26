@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import type { Order } from '@/lib/types'
@@ -33,8 +32,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 
@@ -75,8 +73,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 

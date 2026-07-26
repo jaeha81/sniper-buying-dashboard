@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import { getProductById } from '@/data/sample-products'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import type { Product } from '@/lib/types'
 
@@ -83,11 +81,12 @@ export async function GET(
     const supabase = await createClient()
 
     if (!supabase) {
-      const product = getProductById(id)
-      if (!product) {
-        return NextResponse.json({ error: '상품을 찾을 수 없습니다.' }, { status: 404 })
-      }
-      return NextResponse.json({ product, source: 'sample' })
+      // 지시서 §2·§19: 실데이터가 없으면 '데이터 없음'으로 표시한다.
+      // 이전에는 하드코딩 샘플 상품을 실데이터인 척 돌려줬다.
+      return NextResponse.json(
+        { error: 'Supabase가 구성되지 않아 상품을 조회할 수 없습니다.' },
+        { status: 503 }
+      )
     }
 
     const { data, error } = await supabase
@@ -116,8 +115,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 
@@ -162,8 +160,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 

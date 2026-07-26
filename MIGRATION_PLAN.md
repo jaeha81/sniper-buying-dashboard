@@ -275,19 +275,32 @@
 
 ### P0 — 내부 운영 기반 전환
 
-1. `users`/`sessions`/`permissions`/`audit_logs` 도입, 세션 인증 교체 (S1, S9)
-2. `middleware.ts` 전면 보호 + `/api` 인증 (S4, S6)
-3. `/admin/*` → `/app/*` 이전, 루트 리다이렉트, `/legacy-store` feature flag 분리
-4. 샘플 데이터 4개 사용처 제거 → `데이터 없음` 표기, `REAL/DEMO/ESTIMATE` 배지 도입
-5. `POST /api/orders` 인증·서버 가격 검증 (S2), 결제 흐름 격리 (S3)
-6. Score 2.0: 신뢰도 + 하드블록 + `scores`/`risk_checks` 저장
-7. 마진 엔진 v2: `margin_calculations` 단일 서버 서비스 + `fx_snapshots`
-8. `tasks`/`task_runs`/`task_events`/`approvals` 엔진 + `agent_tasks` 백필
-9. `category` CHECK 수정 (§1.3-5)
-10. **테스트 인프라 구축** (Vitest) — 마진·스코어·상태전이 단위 테스트를 이 단계에서 착수. 지시서 §19 준수의 전제
-11. `.env.local.example` 실사용 변수와 동기화
+| # | 항목 | 상태 |
+|---|---|---|
+| 1 | `users`/`sessions`/`permissions`/`audit_logs` 도입, 세션 인증 교체 (S1, S9) | ✅ 완료 |
+| 2 | `middleware.ts` 전면 보호 + `/api` 인증 (S4) | ✅ 완료 |
+| 3 | `/admin/*` → `/app/*` 이전, 루트 리다이렉트, `/legacy-store` 분리 | ⏸ 대기 — §6-1 확인 필요 |
+| 4 | 샘플 데이터 사용처 제거 → `데이터 없음` 표기 | ✅ 완료 (파일 삭제까지) |
+| 5 | `POST /api/orders` 서버 가격 검증 (S2), 결제 흐름 격리 (S3) | ✅ 완료 |
+| 6 | Score 2.0: 신뢰도 + 하드블록 + `scores`/`risk_checks` 저장 | ⬜ 예정 |
+| 7 | 마진 엔진 v2: `margin_calculations` + `fx_snapshots` | ⬜ 예정 |
+| 8 | `tasks`/`task_runs`/`task_events`/`approvals` 엔진 | ⬜ 예정 |
+| 9 | `category` CHECK 수정 (§1.3-5) | ✅ 완료 (`007`) |
+| 10 | 테스트 인프라 구축 (Vitest) | ✅ 완료 (24개 통과) |
+| 11 | `.env.local.example` 실사용 변수와 동기화 | ✅ 완료 |
+| + | `GET /api/health` (지시서 §14) | ✅ 완료 (앞당김) |
+| + | CSRF 방어 (S6) | ⬜ 예정 |
 
-**완료 기준**: 루트가 로그인/지휘실로 이동 · 모든 화면에 데이터 출처 배지 · 마진/스코어 테스트 통과 · 감사 로그 기록 확인 · 샘플 데이터 참조 0건
+**첫 배치에서 실제로 바뀐 것**
+
+- **세션 인증**: 쿠키에 `ADMIN_SESSION_SECRET` 원본을 담던 구조를 폐기. 이제 쿠키에는 `v1.<세션ID>.<만료>.<HMAC>` 서명 토큰만 담기고 시크릿은 서버를 떠나지 않는다. 세션은 `sessions` 행으로 존재해 개별 폐기·만료가 가능하다. 미들웨어는 서명만 상태 없이 검증(Edge, DB 왕복 없음)하고, 라우트는 DB까지 조회해 폐기 여부를 확인한다.
+- **API 보호**: matcher가 `/admin` 하나에서 `['/admin/*','/app/*','/api/*']`로 확대. 기본 차단 + 명시적 허용 목록(로그인·헬스·환율·자동화 웹훅·레거시 스토어) 구조로 바뀌어, 라우트가 개별 검사를 빠뜨려도 열리지 않는다.
+- **주문 금액**: 클라이언트가 보내던 `unitPrice`/`totalPrice`/`orderRef`를 전부 무시한다. 서버가 `products`에서 가격을 조회해 계산하고 주문번호도 서버가 만든다. 결제창에 넘기는 금액도 서버 확정값이다. 판매중(`active`)이 아닌 상품은 거부한다.
+- **다건 주문**: 장바구니에 여러 상품이 있으면 `product_id: 'multi'`(존재하지 않는 ID)로 한 행에 뭉개던 것을 품목마다 한 행씩 저장하도록 수정. 정식 `order_items` 도입(P2) 전까지의 구조다.
+- **결제 미승인 표시**: `orders.payment_status`를 추가하고 모든 신규 주문을 `unconfirmed`로 기록한다. Toss 서버 승인 단계가 없어 실제 수납이 일어나지 않는 상태를 데이터에 명시했다 — 수익 집계에서 걸러낼 수 있다.
+- **샘플 데이터 제거**: `data/sample-products.ts`(897줄)·`sample-orders.ts`(144줄) 삭제. API 폴백·상품 목록 초기값·랜딩 통계·랜딩 추천 상품 4곳이 전부 실 DB 조회로 바뀌었고, 데이터가 없으면 `—` 또는 "등록된 상품이 없습니다"로 표시한다.
+
+**완료 기준 대비 현황**: 마진/스코어 테스트 통과 ✅ · 감사 로그 기록 ✅ · 샘플 데이터 참조 0건 ✅ · 루트 리다이렉트 ⏸ · 데이터 출처 배지 🔶 (API가 `dataQuality`/`capturedAt`를 반환하기 시작했으나 화면 표시는 미구현)
 
 ### P1 — Bucky와 직원 운영
 

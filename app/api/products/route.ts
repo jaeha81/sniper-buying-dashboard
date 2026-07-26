@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
-import { sampleProducts } from '@/data/sample-products'
 import type { Product } from '@/lib/types'
 
 // DB row (snake_case) → TypeScript Product (camelCase)
@@ -84,11 +82,13 @@ export async function GET(request: Request) {
     const supabase = await createClient()
 
     if (!supabase) {
-      // Supabase not configured — return sample data
-      const products = statusFilter
-        ? sampleProducts.filter((p) => p.status === statusFilter)
-        : sampleProducts
-      return NextResponse.json({ products, source: 'sample' })
+      // 지시서 §2·§19: 실데이터가 없으면 0 또는 '데이터 없음'으로 표시한다.
+      // 이전에는 하드코딩된 샘플 상품 30개를 실데이터인 척 돌려줬고,
+      // 랜딩 통계(상품 수·평균 마진율)가 그 값으로 계산됐다.
+      return NextResponse.json(
+        { products: [], source: 'unavailable', reason: 'Supabase가 구성되지 않았습니다.' },
+        { status: 503 }
+      )
     }
 
     let query = supabase.from('products').select('*').order('created_at', { ascending: false })
@@ -100,7 +100,13 @@ export async function GET(request: Request) {
     if (error) throw error
 
     const products = (data ?? []).map(rowToProduct)
-    return NextResponse.json({ products, source: 'supabase' })
+    // source: 화면이 REAL/DEMO/ESTIMATE 배지를 붙일 수 있게 출처를 명시한다.
+    return NextResponse.json({
+      products,
+      source: 'supabase',
+      dataQuality: 'REAL',
+      capturedAt: new Date().toISOString(),
+    })
   } catch (err) {
     console.error('[GET /api/products]', err)
     return NextResponse.json({ error: '상품 목록 조회 중 오류가 발생했습니다.' }, { status: 500 })
@@ -110,8 +116,7 @@ export async function GET(request: Request) {
 // ─── POST /api/products ───────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies()
-  if (!isAdminAuthenticated(cookieStore)) {
+  if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 401 })
   }
 

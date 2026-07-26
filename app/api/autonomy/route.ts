@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyAdmin } from '@/lib/notify'
@@ -7,8 +6,7 @@ import { AUTONOMY_LEVELS, AUTONOMY_LEVEL_LABELS, type AutonomyPolicy } from '@/l
 import { loadAutonomyPolicy, saveAutonomyPolicy, countAutoActionsLast24h } from '@/lib/autonomy-store'
 
 async function requireAdmin() {
-  const cookieStore = await cookies()
-  return isAdminAuthenticated(cookieStore)
+  return isAdminAuthenticated()
 }
 
 export async function GET() {

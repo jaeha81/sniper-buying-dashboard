@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isAdminAuthenticated } from '@/lib/admin-auth'
 import { notifyAdmin } from '@/lib/notify'
@@ -19,8 +18,7 @@ const ACTION_TO_STATUS: Record<TaskMutationAction, string> = {
 const RISKY_SET = new Set(RISKY_AGENT_ACTIONS)
 
 async function requireAdmin() {
-  const cookieStore = await cookies()
-  return isAdminAuthenticated(cookieStore)
+  return isAdminAuthenticated()
 }
 
 export async function PUT(
